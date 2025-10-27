@@ -4,11 +4,13 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-DB_NAME = os.getenv("DB_NAME")
-DB_URL = os.getenv("DB_URL")
+DB_NAME = os.getenv('DB_NAME')
+DB_URL = os.getenv('DB_URL')
 
 if not DB_NAME or not DB_URL:
-    raise RuntimeError("As variáveis de ambiente DB_NAME e DB_URL devem estar definidas.")
+    raise RuntimeError(
+        'As variáveis de ambiente DB_NAME e DB_URL devem estar definidas.'
+    )
 
 
 class MongoDBConnection:
@@ -21,7 +23,7 @@ class MongoDBConnection:
             self._client = AsyncIOMotorClient(db_url)
             self._database = self._client[db_name]
         except Exception as e:
-            raise RuntimeError(f"Falha ao conectar ao MongoDB: {e}")
+            raise RuntimeError(f'Falha ao conectar ao MongoDB: {e}')
 
     async def disconnect(self) -> None:
         if self._client:
@@ -31,11 +33,12 @@ class MongoDBConnection:
 
     async def get_database(self) -> AsyncIOMotorDatabase:
         if self._database is None:
-            raise RuntimeError("Aplicação não conectada ao MongoDB Atlas")
+            raise RuntimeError('Aplicação não conectada ao MongoDB Atlas')
         return self._database
 
 
 db_mongo = MongoDBConnection()
+
 
 async def mongodb_connect() -> None:
     await db_mongo.connect(DB_URL, DB_NAME)
