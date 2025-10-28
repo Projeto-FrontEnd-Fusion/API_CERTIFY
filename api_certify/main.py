@@ -4,6 +4,8 @@ from api_certify.core.database.mongodb import (
     mongodb_connect,
     mongodb_disconnect,
 )
+
+from fastapi.middleware.cors import CORSMiddleware 
 from api_certify.routes.v1.auth_routes import auth_routes
 from api_certify.exceptions.exeptions import http_exception_handler, validation_exception_handler
 from fastapi.exceptions import RequestValidationError
@@ -16,6 +18,15 @@ async def lifespan(app: FastAPI):
     yield
     await mongodb_disconnect()
     print('Conexão encerrada')
+
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=["*"],
+  # allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"]
+)
+
 
 
 app = FastAPI(
