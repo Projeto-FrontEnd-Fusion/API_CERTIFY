@@ -7,7 +7,7 @@ auth_routes = APIRouter(
   prefix='/auth', tags=["Auth"]
 )
 
-@auth_routes.post('/', response_model=SucessResponse, status_code=201)
+@auth_routes.post('/signup', response_model=SucessResponse, status_code=201)
 async def create_auth(auth_data : AuthUser, service : AuthService = Depends(get_auth_service)):
     try:
       auth = await service.create_auth_user(auth_data)
