@@ -19,14 +19,6 @@ async def lifespan(app: FastAPI):
     await mongodb_disconnect()
     print('Conexão encerrada')
 
-app.add_middleware(
-  CORSMiddleware,
-  allow_origins=["*"],
-  # allow_credentials=True,
-  allow_methods=["*"],
-  allow_headers=["*"]
-)
-
 
 
 app = FastAPI(
@@ -38,6 +30,16 @@ app = FastAPI(
     version='1.0.1',
     lifespan=lifespan,
 )
+
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=["*"],
+  # allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"]
+)
+
+
 
 
 @app.get('/health')
