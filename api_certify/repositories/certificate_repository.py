@@ -48,7 +48,7 @@ def mocked_event(userId, participantName, participantEmail):
 
 class CertificateRepository:
     def __init__(self, database: AsyncIOMotorDatabase):
-        self.certificates: AsyncIOMotorCollection = database.get_collection(
+        self.certificate_collection: AsyncIOMotorCollection = database.get_collection(
             "certificates"
         )
         self.auth_collection: AsyncIOMotorCollection = database.get_collection("auth")
@@ -66,8 +66,17 @@ class CertificateRepository:
             participantEmail=existingUser.get("email"),
             participantName=existingUser.get("fullname"),
         )
+
         if not existingEvent:
             raise Exception("Evento não existe")
+        
+        existingCertificate = await self.certificate_collection.find_one({
+            "_id": str(ObjectId(existingEvent.get("_id"))),
+            "user_id": str(ObjectId(existingUser.get("_id")))
+        })
+        
+        if existingCertificate:
+            raise Exception("Um certificado já foi gerado para este evento.")
 
         now = datetime.now(timezone.utc)
 
@@ -97,8 +106,8 @@ class CertificateRepository:
         )
 
         # Insere o certificado na collection de certificates
-        result = await self.certificates.insert_one(certificate_dict)
-        created_certificate = await self.certificates.find_one(
+        result = await self.certificate_collection.insert_one(certificate_dict)
+        created_certificate = await self.certificate_collection.find_one(
             {"_id": ObjectId(result.inserted_id)}
         )
 
@@ -115,7 +124,7 @@ class CertificateRepository:
         if not existingUser:
             raise Exception("Usuário não encontrado")
 
-        cursor = self.certificates.find({"user_id": str(ObjectId(user_id))})
+        cursor = self.certificate_collection.find({"user_id": str(ObjectId(user_id))})
         docs = await cursor.to_list(length=None)
 
         if not docs or len(docs) < 1:
@@ -127,7 +136,7 @@ class CertificateRepository:
         return [CertificateResponse(**doc) for doc in docs]
 
     async def get_certificate(self, certificate_id: str) -> CertificateResponse:
-        existingCertificate = await self.certificates.find_one(
+        existingCertificate = await self.certificate_collection.find_one(
             {"_id": ObjectId(certificate_id)}
         )
 
