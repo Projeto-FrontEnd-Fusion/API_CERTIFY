@@ -1,12 +1,16 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
+
+from fastapi.middleware.cors import CORSMiddleware 
+
 from api_certify.core.database.mongodb import (
     mongodb_connect,
     mongodb_disconnect,
 )
 from api_certify.routes.v1.auth_routes import auth_routes
+from api_certify.routes.v1.certificate_routes import certificate_routes
 from api_certify.exceptions.exeptions import http_exception_handler, validation_exception_handler
-from fastapi.exceptions import RequestValidationError
 
 
 @asynccontextmanager
@@ -28,12 +32,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=["*"],
+  # allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"]
+)
+
 
 @app.get('/health')
 def me():
     return {'message': 'API Certify está rodando!'}
 
 api_prefix = "/api/v1"
-app.include_router(auth_routes, prefix=api_prefix )
+app.include_router(auth_routes, prefix=api_prefix)
+app.include_router(certificate_routes, prefix=api_prefix)
 app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
