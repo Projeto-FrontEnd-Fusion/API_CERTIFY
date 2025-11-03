@@ -59,3 +59,13 @@
 • Mantida a funcionalidade de conversão de ObjectId para string
 • Melhorada a documentação dos métodos com docstrings
 
+**Título:** Correção de Conflito em Rotas GET
+
+**Principais melhorias/correções:**
+• Alterada rota `GET /{user_id}` para `GET /users/{user_id}` para listar certificados de um usuário
+• Resolvido conflito entre as rotas GET que usavam o mesmo padrão (`/{id}`)
+• Agora temos rotas distintas:
+  - `GET /users/{user_id}` - lista certificados do usuário
+  - `GET /{item_id}` - busca certificado específico por ID
+• Mantidas todas as funcionalidades e respostas existentes
+• Preservada a estrutura de tratamento de exceções e respostas
