@@ -2,13 +2,19 @@ from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
 from api_certify.models.auth_model import AuthUser, AuthUserInDb, AuthUserReponse
 from datetime import datetime, timezone
 from api_certify.core.security.hash_manager import HashManager
+from bson import ObjectId
 
 
 class AuthRepository:
     def __init__(self, database: AsyncIOMotorDatabase):
         self.collection: AsyncIOMotorCollection = database.auth_database
+    
+    async def isExistAuth(self, user_id: str) -> bool:
+        auth_in_db = await self.collection.find_one({"_id": ObjectId(user_id)})
+        return auth_in_db is not None
 
     async def create(self, auth_data: AuthUser) -> AuthUserReponse:
+        
         isExistEmail = await self.collection.find_one({
             'email': auth_data.email
         })

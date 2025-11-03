@@ -28,6 +28,7 @@ bcrypt = "4.1.2"
 motor = "3.3.2"
 pymongo = "4.5.0"
 pydantic = { extras = ["email"], version = "^2.12.2" }
+motor-types = "^1.0.0b4"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.14.0"
