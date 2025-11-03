@@ -27,7 +27,7 @@ async def request_certificate(
         raise HTTPException(status_code=400, detail=str(err))
 
 
-@certificate_routes.get("/{user_id}", response_model=SucessResponse, status_code=200)
+@certificate_routes.get("/users/{user_id}", response_model=SucessResponse, status_code=200)
 async def get_many_certificate(
     user_id: str, service: CertificateService = Depends(get_certificate_service)
 ):
