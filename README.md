@@ -58,7 +58,7 @@ cp .env.example .env
 
 Variáveis necessárias:
 ```
-DB_URL=mongodb+srv://projetofrontendfusion_db_user:ej9AKorCHfFe4fMZ@cluster0.salfi3n.mongodb.net/?appName=Cluster0
+DB_URL=mongodb+srv://project_name:<password>@cluster0.salfi3n.mongodb.net/?appName=Cluster0
 DB_NAME=CERTIFY
 ```
 

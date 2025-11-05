@@ -9,6 +9,9 @@ from api_certify.models.certificate_model import (
     CreateCertificate,
 )
 
+import os
+ACCESS_KEY = os.getenv('ACCESS_KEY')
+
 
 def add_years(data: datetime, anos: int) -> datetime:
     """Adiciona um número de anos a uma data, ajustando para anos não bissextos se necessário."""
@@ -71,7 +74,10 @@ class CertificateRepository:
         """
         Cria um novo certificado apenas se não existir um para o mesmo usuário e evento
         """
-        
+
+        if certificate_data.access_key != ACCESS_KEY:
+            raise Exception("Chave de Acesso Inválido.")
+            
         # Verificação adicional para garantir que não há duplicata
         existing = await self.find_existing_certificate(user_id, certificate_data)
         if existing:
@@ -120,3 +126,4 @@ class CertificateRepository:
 
         existingCertificate["_id"] = str(existingCertificate["_id"])
         return CertificateInDb(**existingCertificate)
+
