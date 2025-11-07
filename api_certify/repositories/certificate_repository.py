@@ -51,10 +51,6 @@ class CertificateRepository:
         self.auth_collection: AsyncIOMotorCollection = database.get_collection("auth")
     
     async def find_existing_certificate(self, user_id: str, certificate_data: CreateCertificate) -> CertificateInDb | None:
-        """
-        Busca um certificado existente para o usuário e evento específico.
-        A chave de unicidade é: user_id + event_id
-        """
         existing_certificate = await self.certificate_collection.find_one({
             "user_id": user_id,
             "event_id": certificate_data.event_id  # Garante que não haja dois certificados do mesmo evento
@@ -68,9 +64,6 @@ class CertificateRepository:
     async def create(
         self, user_id: str, certificate_data: CreateCertificate
     ) -> CertificateInDb:
-        """
-        Cria um novo certificado apenas se não existir um para o mesmo usuário e evento
-        """
         
         # Verificação adicional para garantir que não há duplicata
         existing = await self.find_existing_certificate(user_id, certificate_data)
@@ -110,10 +103,10 @@ class CertificateRepository:
 
         return [CertificateInDb(**doc) for doc in docs]
 
-    async def get_certificate(self, certificate_id: str) -> CertificateInDb:
+    async def get_certificate(self, user_id: str) -> CertificateInDb:
         existingCertificate = await self.certificate_collection.find_one(
-            {"_id": ObjectId(certificate_id)}
-        )
+            {"user_id": user_id})
+        
 
         if not existingCertificate:
             raise Exception("Certificado não encontrado.")

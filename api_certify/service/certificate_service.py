@@ -37,4 +37,5 @@ class CertificateService:
 
     async def get_certificate_by_id(self, certificate_id: str) -> CertificateInDb:
         response = await self.certificate_repository.get_certificate(certificate_id)
+        print(certificate_id)
         return response
