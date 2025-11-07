@@ -90,12 +90,22 @@ class CertificateRepository:
             access_key=certificate_data.access_key,
             status="available"
         )
-
+        
+           
         result = await self.certificate_collection.insert_one(created_certificate)
         created_doc = await self.certificate_collection.find_one({"_id": result.inserted_id})
 
         if not created_doc:
             raise Exception("Erro ao criar o certificado.")
+        
+        existingUser = await self.auth_collection.find_one_and_update(
+            {"email": certificate_data.email}, 
+            {"$set": {"status": "available"}},
+            return_document=True  # Retorna o documento atualizado
+        )
+        if not existingUser:
+            print(f"Aviso: Usuário com email {certificate_data.email} não encontrado")
+
 
         created_doc["_id"] = str(created_doc["_id"])
         return CertificateInDb(**created_doc)
@@ -118,7 +128,7 @@ class CertificateRepository:
 
     async def get_certificate(self, certificate_id: str) -> CertificateInDb:
         existingCertificate = await self.certificate_collection.find_one(
-            {"_id": ObjectId(certificate_id)}
+            {"user_id": certificate_id}
         )
 
         if not existingCertificate:
@@ -126,4 +136,6 @@ class CertificateRepository:
 
         existingCertificate["_id"] = str(existingCertificate["_id"])
         return CertificateInDb(**existingCertificate)
+    
+
 

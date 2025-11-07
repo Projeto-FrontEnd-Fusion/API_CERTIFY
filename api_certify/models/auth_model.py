@@ -13,6 +13,7 @@ DESC_FULLNAME = 'Nome completo do usuário para identificação. Deve conter nom
 DESC_EMAIL = 'Endereço de email válido utilizado para login e comunicação'
 DESC_PASSWORD = 'Senha de acesso segura. Deve conter letras, números e caracteres especiais'
 DESC_ROLE = 'Nível de acesso do usuário no sistema. Define permissões e funcionalidades disponíveis'
+DESC_STATUS = 'Status do usuário no sistema. Indica se possui certificado disponível ou outros estados'
 DESC_CREATED_AT = 'Data e hora de criação do registro no sistema. Preenchido automaticamente'
 DESC_UPDATED_AT = 'Data e hora da última atualização do registro. Atualizado automaticamente'
 DESC_USER_ID = 'Identificador único do usuário no banco de dados (MongoDB ObjectId)'
@@ -22,6 +23,7 @@ EXAMPLE_EMAIL = 'usuario@empresa.com'
 EXAMPLE_PASSWORD = 'SenhaSegura123!'
 EXAMPLE_USER_ID = '507f1f77bcf86cd799439011'
 EXAMPLE_DATETIME = '2024-01-15T10:30:00.000Z'
+EXAMPLE_STATUS = 'available'
 
 
 class Role(str, Enum):
@@ -53,6 +55,11 @@ class AuthUser(BaseModel):
         ..., 
         description=DESC_ROLE,
         example=Role.USER
+    )
+    status: Optional[str] = Field(
+        None,
+        description=DESC_STATUS,
+        example=EXAMPLE_STATUS
     )
     created_at: Optional[datetime] = Field(
         None,
@@ -112,6 +119,11 @@ class AuthUserReponse(BaseModel):
         ..., 
         description=DESC_ROLE,
         example=Role.USER
+    )
+    status: Optional[str] = Field(
+        None,
+        description=DESC_STATUS,
+        example=EXAMPLE_STATUS
     )
     created_at: Optional[datetime] = Field(
         None,
