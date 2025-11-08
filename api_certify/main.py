@@ -36,13 +36,8 @@ app = FastAPI(
 
 app.add_middleware(
   CORSMiddleware,
-  allow_origins=[
-        "https://www.certifyfusion.com.br",
-        "https://certifyfusion.com.br",
-        "http://localhost:5173",
-        "https://certify-platform-iota.vercel.app"
-    ],
-  allow_credentials=True,
+  allow_origins=["*"],
+#   allow_credentials=True,
   allow_methods=["*"],
   allow_headers=["*"]
     )
