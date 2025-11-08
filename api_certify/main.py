@@ -37,16 +37,24 @@ app = FastAPI(
 
 app.add_middleware(
   CORSMiddleware,
-  allow_origins=["*"],
-  # allow_credentials=True,
+  allow_origins=[
+    'www.certifyfusion.com.br',
+    'certifyfusion.com.br',
+    ],
+  allow_credentials=True,
   allow_methods=["*"],
   allow_headers=["*"]
-)
+    )
 
+
+@app.get('/')
+def me():
+    return {'Fala meu Frontend Sênior, Primeiramente': "Hello World"}
 
 @app.get('/health')
 def me():
     return {'message': 'API Certify está rodando!'}
+
 
 api_prefix = "/api/v1"
 app.include_router(auth_routes, prefix=api_prefix)
