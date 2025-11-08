@@ -40,6 +40,8 @@ app.add_middleware(
   allow_origins=[
     'www.certifyfusion.com.br',
     'certifyfusion.com.br',
+    'http://localhost:5173',
+    'https://certify-platform-iota.vercel.app'
     ],
   allow_credentials=True,
   allow_methods=["*"],
