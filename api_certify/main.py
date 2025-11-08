@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 
-from fastapi.middleware.cors import CORSMiddleware 
 
 from api_certify.core.database.mongodb import (
     mongodb_connect,
@@ -38,10 +37,10 @@ app = FastAPI(
 app.add_middleware(
   CORSMiddleware,
   allow_origins=[
-    'www.certifyfusion.com.br',
-    'certifyfusion.com.br',
-    'http://localhost:5173',
-    'https://certify-platform-iota.vercel.app'
+        "https://www.certifyfusion.com.br",
+        "https://certifyfusion.com.br",
+        "http://localhost:5173",
+        "https://certify-platform-iota.vercel.app"
     ],
   allow_credentials=True,
   allow_methods=["*"],
