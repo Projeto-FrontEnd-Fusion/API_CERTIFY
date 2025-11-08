@@ -35,12 +35,20 @@ app = FastAPI(
 )
 
 app.add_middleware(
-  CORSMiddleware,
-  allow_origins=["*"],
-#   allow_credentials=True,
-  allow_methods=["*"],
-  allow_headers=["*"]
-    )
+    CORSMiddleware,
+    allow_origins=[
+        "https://www.certifyfusion.com.br",
+        "https://certifyfusion.com.br", 
+        "http://localhost:5173",
+        "https://certify-platform-iota.vercel.app"
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept"],
+    expose_headers=["Content-Length", "X-Total-Count"],
+    max_age=600  
+)
+print("CORS Middleware carregado com sucesso!")
 
 
 @app.get('/')
