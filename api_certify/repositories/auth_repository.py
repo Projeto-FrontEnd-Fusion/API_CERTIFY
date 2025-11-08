@@ -27,6 +27,7 @@ class AuthRepository:
         auth_dict.update({
             'created_at': datetime.now(timezone.utc),
             'updated_at': datetime.now(timezone.utc),
+            "status" : "pending",
             "password" : hash.create_hash(auth_data.password)
         })
 
@@ -55,6 +56,7 @@ class AuthRepository:
 
         del auth_in_db["password"]
         auth_in_db["_id"] = str(auth_in_db["_id"])
+        print(auth_in_db)
         return AuthUserReponse(**auth_in_db)
 
         

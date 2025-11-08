@@ -51,7 +51,7 @@ class CertificateRepository:
         self.certificate_collection: AsyncIOMotorCollection = database.get_collection(
             "certificates"
         )
-        self.auth_collection: AsyncIOMotorCollection = database.get_collection("auth")
+        self.auth_collection: AsyncIOMotorCollection = database.get_collection("auth_database")
     
     async def find_existing_certificate(self, user_id: str, certificate_data: CreateCertificate) -> CertificateInDb | None:
         """
