@@ -5,13 +5,12 @@ from enum import Enum
 
 
 class InstitutionStatus(str, Enum):
-    pending = 'pending'  
-    available = 'available'  
-    deactivated = 'deactivated'  
-    activated = 'activated'  
+    pending = 'pending'
+    available = 'available'
+    deactivated = 'deactivated'
+    activated = 'activated'
 
 
-DESC_INSTITUTION_NAME = 'Nome da instituição'
 DESC_INSTITUTION_DESCRIPTION = 'Descrição geral da instituição'
 DESC_INSTITUTION_RESPONSIBLE_NAME = 'Nome do responsável pela instituição'
 DESC_INSTITUTION_RESPONSIBLE_POSITION = 'Cargo do responsável pela instituição'
@@ -25,11 +24,9 @@ DESC_INSTITUTION_CREATED_AT = (
 DESC_INSTITUTION_UPDATED_AT = (
     'Data e hora da última atualização do cadastro da instituição'
 )
-DESC_INSTITUTION_STATUS = 'Status atual da instituição (pendente, disponível, desativada ou reativada)'
 
 EXAMPLE_DATETIME = '2025-11-09T15:30:00Z'
 
-MAX_INSTITUTION_NAME = 50
 MAX_INSTITUTION_DESCRIPTION = 255
 MAX_INSTITUTION_RESPONSIBLE_POSITION = 50
 MAX_INSTITUTION_CNPJ = 14
@@ -38,13 +35,6 @@ MAX_INSTITUTION_PHONE = 14
 
 
 class InstitutionBase(BaseModel):
-    name: str = Field(
-        ...,
-        alias='institution_name',
-        max_length=MAX_INSTITUTION_NAME,
-        min_length=4,
-        description=DESC_INSTITUTION_NAME,
-    )
     institution_description: str = Field(
         ...,
         alias='description',
@@ -71,7 +61,7 @@ class InstitutionBase(BaseModel):
     responsible_name: str = Field(
         ...,
         alias='responsible_name',
-        max_length=MAX_INSTITUTION_NAME,
+        max_length=50,
         min_length=4,
         description=DESC_INSTITUTION_RESPONSIBLE_NAME,
     )
@@ -88,11 +78,6 @@ class InstitutionBase(BaseModel):
         max_length=MAX_INSTITUTION_CPF,
         description=DESC_INSTITUTION_RESPONSIBLE_CPF,
     )
-    status: InstitutionStatus = Field(
-        default=InstitutionStatus.pending,
-        description=DESC_INSTITUTION_STATUS,
-        example=InstitutionStatus.pending,
-    )
 
     class Config:
         populate_by_name = True
@@ -103,13 +88,6 @@ class CreateInstitution(InstitutionBase):
 
 
 class InstitutionUpdate(BaseModel):
-    name: Optional[str] = Field(
-        None,
-        alias='institution_name',
-        max_length=MAX_INSTITUTION_NAME,
-        min_length=4,
-        description=DESC_INSTITUTION_NAME,
-    )
     institution_description: Optional[str] = Field(
         None,
         alias='description',
@@ -136,7 +114,7 @@ class InstitutionUpdate(BaseModel):
     responsible_name: Optional[str] = Field(
         None,
         alias='responsible_name',
-        max_length=MAX_INSTITUTION_NAME,
+        max_length=50,
         min_length=4,
         description=DESC_INSTITUTION_RESPONSIBLE_NAME,
     )
@@ -152,11 +130,6 @@ class InstitutionUpdate(BaseModel):
         alias='responsible_cpf',
         max_length=MAX_INSTITUTION_CPF,
         description=DESC_INSTITUTION_RESPONSIBLE_CPF,
-    )
-    status: Optional[InstitutionStatus] = Field(
-        None,
-        description=DESC_INSTITUTION_STATUS,
-        example=InstitutionStatus.available,
     )
     created_at: Optional[datetime] = Field(
         None,
