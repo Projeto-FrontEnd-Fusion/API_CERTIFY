@@ -1,15 +1,15 @@
 from fastapi import Depends
 
 from api_certify.core.database.mongodb import db_mongo
-from api_certify.service.auth_service import AuthService
 from api_certify.repositories.auth_repository import AuthRepository
-from api_certify.service.certificate_service import CertificateService
 from api_certify.repositories.certificate_repository import (
     CertificateRepository,
 )
 from api_certify.repositories.Institution_auth_repository import (
     InstitutionAuthRepository,
 )
+from api_certify.service.auth_service import AuthService
+from api_certify.service.certificate_service import CertificateService
 from api_certify.service.Institution_auth_service import InstitutionAuthService
 
 
@@ -50,6 +50,6 @@ async def get_instituition_auth_repository() -> InstitutionAuthRepository:
 async def get_institution_auth_service(
     institution_auth_repository: InstitutionAuthRepository = Depends(
         get_instituition_auth_repository
-    ) ,
+    ),
 ) -> InstitutionAuthService:
     return InstitutionAuthService(institution_auth_repository)

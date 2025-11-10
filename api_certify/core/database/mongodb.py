@@ -1,7 +1,8 @@
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
-from typing import Optional
 import os
+from typing import Optional
+
 from dotenv import load_dotenv
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 load_dotenv()
 DB_NAME = os.getenv('DB_NAME')

@@ -1,9 +1,9 @@
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from datetime import datetime
-from typing import Optional
 from enum import Enum
-from bson import ObjectId
+from typing import Optional
 
+from bson import ObjectId
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 DESC_INSTITUTION_NAME = (
     'Nome oficial da instituição responsável pelos eventos e certificados.'
@@ -62,14 +62,10 @@ class InstitutionAuth(BaseModel):
         None, description=DESC_STATUS, example=EXAMPLE_STATUS
     )
     created_at: Optional[datetime] = Field(
-        None,
-        description=DESC_CREATED_AT,
-        example=EXAMPLE_DATETIME
+        None, description=DESC_CREATED_AT, example=EXAMPLE_DATETIME
     )
     updated_at: Optional[datetime] = Field(
-        None,
-        description=DESC_UPDATED_AT,
-        example=EXAMPLE_DATETIME
+        None, description=DESC_UPDATED_AT, example=EXAMPLE_DATETIME
     )
 
 
@@ -122,6 +118,5 @@ class InstitutionAuthResponse(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
         arbitrary_types_allowed=True,
-        json_encoders={ObjectId: str} 
+        json_encoders={ObjectId: str},
     )
-    

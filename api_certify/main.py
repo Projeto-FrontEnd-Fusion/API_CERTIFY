@@ -1,20 +1,21 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 
 from api_certify.core.database.mongodb import (
     mongodb_connect,
     mongodb_disconnect,
 )
-
-from fastapi.middleware.cors import CORSMiddleware
-from api_certify.routes.v1.auth_routes import auth_routes
-from api_certify.routes.v1.certificate_routes import certificate_routes
-from api_certify.routes.v1.institution_auth_routes import institution_auth_routes
 from api_certify.exceptions.exeptions import (
     http_exception_handler,
     validation_exception_handler,
+)
+from api_certify.routes.v1.auth_routes import auth_routes
+from api_certify.routes.v1.certificate_routes import certificate_routes
+from api_certify.routes.v1.institution_auth_routes import (
+    institution_auth_routes,
 )
 
 
