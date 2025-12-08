@@ -5,7 +5,7 @@ from api_certify.models.certificate_model import (
     CreateCertificate,
 )
 from api_certify.service.certificate_service import CertificateService
-from api_certify.dependencies import get_certificate_service
+from api_certify.dependencies import get_certificate_service, get_current_active_user
 
 certificate_routes = APIRouter(prefix="/certificate", tags=["Certificates"])
 
@@ -15,6 +15,7 @@ async def request_certificate(
     user_id: str,
     payload: CreateCertificate,
     service: CertificateService = Depends(get_certificate_service),
+    current_user = Depends(get_current_active_user)
 ):
     try:
         certificate = await service.create_participant_certificate(user_id, payload)
@@ -29,7 +30,9 @@ async def request_certificate(
 
 @certificate_routes.get("/users/{user_id}", response_model=SucessResponse, status_code=200)
 async def get_many_certificate(
-    user_id: str, service: CertificateService = Depends(get_certificate_service)
+    user_id: str, 
+    service: CertificateService = Depends(get_certificate_service),
+    current_user = Depends(get_current_active_user)
 ):
     try:
         certificates = await service.get_many_certificates(user_id)
@@ -46,6 +49,7 @@ async def get_many_certificate(
 async def get_certificate_by_id(
     item_id: str,
     service: CertificateService = Depends(get_certificate_service),
+    current_user = Depends(get_current_active_user)
 ):
     try:
         certificate = await service.get_certificate_by_id(item_id)
