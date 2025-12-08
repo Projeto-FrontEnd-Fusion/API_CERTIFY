@@ -1,7 +1,6 @@
 from api_certify.repositories.auth_repository import AuthRepository
 from api_certify.models.auth_model import (
-  AuthUser, 
-  AuthUserInDb, 
+  AuthUser,
   AuthUserLogin,
   AuthUserReponse,
   Role
