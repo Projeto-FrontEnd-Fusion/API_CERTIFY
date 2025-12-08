@@ -54,6 +54,10 @@ class AuthRepository:
         if not isValidPassword:
             raise Exception('Credenciais Inválidas')
 
+        await self.collection.update_one(
+            {"_id": auth_in_db["_id"]},
+            {"$set": {"status": "active"}}
+        )
         del auth_in_db["password"]
         auth_in_db["_id"] = str(auth_in_db["_id"])
         print(auth_in_db)
