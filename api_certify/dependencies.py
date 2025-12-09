@@ -57,7 +57,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> TokenData:
 
 async def get_current_active_user(current_user: TokenData = Depends(get_current_user)) -> AuthUserReponse:
     database = await db_mongo.get_database()
-    user = await database.auth_database.find_one({"_id": ObjectId(current_user.sub)})
+    user = await database.auth_database.find_one({"_id": ObjectId(current_user["sub"])})
 
     if not user:
         raise HTTPException(
