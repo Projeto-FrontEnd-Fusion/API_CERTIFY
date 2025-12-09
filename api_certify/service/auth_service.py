@@ -11,8 +11,9 @@ from api_certify.core.security.jwt_manager import JWTManager
 
 
 class AuthService:
-  def __init__(self, auth_repository : AuthRepository):
+  def __init__(self, auth_repository : AuthRepository, jwt_manager=None):
     self.auth_repository = auth_repository
+    self.jwt_manager = jwt_manager or JWTManager()
 
   async def create_auth_user(self, auth_data : AuthUser) -> AuthUserReponse:
     auth = await self.auth_repository.create(auth_data)
@@ -33,5 +34,5 @@ class AuthService:
       sub=data.id,
       role=Role(data.role)
     )
-    token = JWTManager.create_jwt(token_data)
+    token = self.jwt_manager.create_jwt(token_data)
     return token
