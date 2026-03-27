@@ -2,8 +2,6 @@ import pytest
 from httpx import AsyncClient
 from unittest.mock import AsyncMock
 from api_certify.main import app
-from api_certify.schemas.responses import SucessResponse
-from api_certify.models.certificate_model import CreateCertificate
 from api_certify.dependencies import get_current_active_user, get_certificate_service
 
 # Mock do usuário logado
@@ -52,7 +50,7 @@ async def test_request_certificate():
     data = response.json()
     assert data["success"] is True
     assert data["data"]["certificate"] == fake_certificate
-    
+
 
 @pytest.mark.asyncio
 async def test_get_many_certificate():
@@ -65,7 +63,7 @@ async def test_get_many_certificate():
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         response = await ac.get(f"/api/v1/certificate/users/{fake_user['_id']}")
-        
+
     # Limpa overrides
     app.dependency_overrides = {}
 

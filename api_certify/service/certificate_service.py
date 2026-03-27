@@ -5,6 +5,7 @@ from api_certify.models.certificate_model import (
 )
 from api_certify.repositories.auth_repository import AuthRepository
 
+
 class CertificateService:
     def __init__(self, certificate_repository: CertificateRepository, auth_repository: AuthRepository):
         self.certificate_repository = certificate_repository

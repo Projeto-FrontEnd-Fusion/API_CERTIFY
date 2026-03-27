@@ -66,36 +66,36 @@ EXAMPLE_CERTIFICATE_EVENT_DATE = '2026-03-15T00:00:00.000Z'  # "?"
 EXAMPLE_CERTIFICATE_ISSUED_AT = '2024-01-15T00:00:00.000Z'
 EXAMPLE_CERTIFICATE_VALID_UNTIL = '2026-01-15T00:00:00.000Z'
 
-#corriji o de nomenclatura "available"
+
+# corriji o de nomenclatura "available"
 class Status(str, Enum):
     PENDING = "pending"
     AVALIABLE = "available"
     EXPIRED = "expired"
 
 
-
-# Está incorreto porque a documentação exige validar o certificado usando fullname, 
-# email e accessKey, mas o schema atual só recebe event_id e opcionalmente 
+# Está incorreto porque a documentação exige validar o certificado usando fullname,
+# email e accessKey, mas o schema atual só recebe event_id e opcionalmente
 # access_key, sem campos para fullname e email.
 
 class CreateCertificate(BaseModel):
     # access_key pode ser opcional — o servidor pode gerar se não enviado
-    fullname: str = Field(..., description=DESC_REQ_CERTIFICATE_FULLNAME, 
+    fullname: str = Field(..., description=DESC_REQ_CERTIFICATE_FULLNAME,
         example=EXAMPLE_REQ_CERTIFICATE_FULLNAME)
-        
+
     access_key: str = Field(
         ...,
         description=DESC_CERTIFICATE_ACCESS_KEY,
         example=EXAMPLE_CERTIFICATE_ACCESS_KEY,
     )
     event_id: str = Field(
-        ..., description=DESC_CERTIFICATE_EVENT_ID, 
+        ..., description=DESC_CERTIFICATE_EVENT_ID,
         example=EXAMPLE_CERTIFICATE_EVENT_ID
         )
-    status : Status = Field(..., description=DESC_CERTIFICATE_STATUS, 
+    status: Status = Field(..., description=DESC_CERTIFICATE_STATUS,
         example=Status.PENDING
         )
-    email: EmailStr = Field(..., description=DESC_REQ_CERTIFICATE_EMAIL, 
+    email: EmailStr = Field(..., description=DESC_REQ_CERTIFICATE_EMAIL,
         example=EXAMPLE_REQ_CERTIFICATE_EMAIL
         )
 
@@ -103,10 +103,11 @@ class CreateCertificate(BaseModel):
 class RequestCertificate(BaseModel):
     user_id: str = Field(
         ...,
-        description = DESC_CERTIFICATE_USER_ID,
+        description=DESC_CERTIFICATE_USER_ID,
         example=EXAMPLE_CERTIFICATE_USER_ID
     )
-    
+
+
 class RequestCertificateById(BaseModel):
     id: str = Field(
         ...,

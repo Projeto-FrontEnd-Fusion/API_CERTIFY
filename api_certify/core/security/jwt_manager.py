@@ -18,12 +18,13 @@ ACCESS_TOKEN_EXPIRES = int(os.getenv("ACCESS_TOKEN_EXPIRES"))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="")
 
+
 class JWTManager:
     @staticmethod
     def create_jwt(data: TokenData) -> Token:
         datetime_now = datetime.now(timezone.utc)
         expiration_datetime = datetime_now + timedelta(minutes=ACCESS_TOKEN_EXPIRES)
-        
+
         payload = {
             "sub": data.sub,
             "role": data.role.value,
@@ -32,11 +33,11 @@ class JWTManager:
             "iat": int(datetime_now.timestamp()),
             "exp": int(expiration_datetime.timestamp())
         }
-        
+
         token_str = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
         return Token(
             access_token=token_str,
-            expires_in= ACCESS_TOKEN_EXPIRES * 60
+            expires_in=ACCESS_TOKEN_EXPIRES * 60
             )
 
     @staticmethod

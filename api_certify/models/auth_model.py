@@ -40,7 +40,7 @@ class AuthUser(BaseModel):
         example=EXAMPLE_FULLNAME
     )
     email: EmailStr = Field(
-        ..., 
+        ...,
         description=DESC_EMAIL,
         example=EXAMPLE_EMAIL
     )
@@ -52,7 +52,7 @@ class AuthUser(BaseModel):
         example=EXAMPLE_PASSWORD
     )
     role: Role = Field(
-        ..., 
+        ...,
         description=DESC_ROLE,
         example=Role.USER
     )
@@ -73,7 +73,7 @@ class AuthUser(BaseModel):
 
 class AuthUserLogin(BaseModel):
     email: EmailStr = Field(
-        ..., 
+        ...,
         description=DESC_EMAIL,
         example=EXAMPLE_EMAIL
     )
@@ -88,7 +88,7 @@ class AuthUserLogin(BaseModel):
 
 class AuthUserInDb(AuthUser):
     id: str = Field(
-        ..., 
+        ...,
         alias='_id',
         description=DESC_USER_ID,
         example=EXAMPLE_USER_ID
@@ -98,7 +98,7 @@ class AuthUserInDb(AuthUser):
 
 class AuthUserReponse(BaseModel):
     id: str = Field(
-        ..., 
+        ...,
         alias='_id',
         description=DESC_USER_ID,
         example=EXAMPLE_USER_ID
@@ -111,12 +111,12 @@ class AuthUserReponse(BaseModel):
         example=EXAMPLE_FULLNAME
     )
     email: EmailStr = Field(
-        ..., 
+        ...,
         description=DESC_EMAIL,
         example=EXAMPLE_EMAIL
     )
     role: Role = Field(
-        ..., 
+        ...,
         description=DESC_ROLE,
         example=Role.USER
     )

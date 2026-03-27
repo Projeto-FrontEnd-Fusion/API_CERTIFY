@@ -15,7 +15,7 @@ async def request_certificate(
     user_id: str,
     payload: CreateCertificate,
     service: CertificateService = Depends(get_certificate_service),
-    current_user = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user)
 ):
     try:
         certificate = await service.create_participant_certificate(user_id, payload)
@@ -30,9 +30,9 @@ async def request_certificate(
 
 @certificate_routes.get("/users/{user_id}", response_model=SucessResponse, status_code=200)
 async def get_many_certificate(
-    user_id: str, 
+    user_id: str,
     service: CertificateService = Depends(get_certificate_service),
-    current_user = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user)
 ):
     try:
         certificates = await service.get_many_certificates(user_id)
@@ -49,7 +49,7 @@ async def get_many_certificate(
 async def get_certificate_by_id(
     item_id: str,
     service: CertificateService = Depends(get_certificate_service),
-    current_user = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user)
 ):
     try:
         certificate = await service.get_certificate_by_id(item_id)

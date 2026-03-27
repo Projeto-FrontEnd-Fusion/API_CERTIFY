@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-import uuid
 from bson.objectid import ObjectId
 
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
@@ -20,6 +19,7 @@ def add_years(data: datetime, anos: int) -> datetime:
     except ValueError:
         # Caso especial: 29 de fevereiro → ajusta para 28 de fevereiro
         return data.replace(month=2, day=28, year=data.year + anos)
+
 
 def mocked_certificate(userId: str, participantName: str, participantEmail: str, access_key: str, status: str) -> dict:
     now = datetime.now(timezone.utc)
@@ -52,7 +52,7 @@ class CertificateRepository:
             "certificates"
         )
         self.auth_collection: AsyncIOMotorCollection = database.get_collection("auth_database")
-    
+
     async def find_existing_certificate(self, user_id: str, certificate_data: CreateCertificate) -> CertificateInDb | None:
         """
         Busca um certificado existente para o usuário e evento específico.
@@ -62,7 +62,7 @@ class CertificateRepository:
             "user_id": user_id,
             "event_id": certificate_data.event_id  # Garante que não haja dois certificados do mesmo evento
         })
-        
+
         if existing_certificate:
             existing_certificate["_id"] = str(existing_certificate["_id"])
             return CertificateInDb(**existing_certificate)
@@ -77,7 +77,7 @@ class CertificateRepository:
 
         if certificate_data.access_key != ACCESS_KEY:
             raise Exception("Chave de Acesso Inválido.")
-            
+
         # Verificação adicional para garantir que não há duplicata
         existing = await self.find_existing_certificate(user_id, certificate_data)
         if existing:
@@ -90,22 +90,20 @@ class CertificateRepository:
             access_key=certificate_data.access_key,
             status="available"
         )
-        
-           
+
         result = await self.certificate_collection.insert_one(created_certificate)
         created_doc = await self.certificate_collection.find_one({"_id": result.inserted_id})
 
         if not created_doc:
             raise Exception("Erro ao criar o certificado.")
-        
+
         existingUser = await self.auth_collection.find_one_and_update(
-            {"email": certificate_data.email}, 
+            {"email": certificate_data.email},
             {"$set": {"status": "available"}},
             return_document=True  # Retorna o documento atualizado
         )
         if not existingUser:
             print(f"Aviso: Usuário com email {certificate_data.email} não encontrado")
-
 
         created_doc["_id"] = str(created_doc["_id"])
         return CertificateInDb(**created_doc)
@@ -136,6 +134,3 @@ class CertificateRepository:
 
         existingCertificate["_id"] = str(existingCertificate["_id"])
         return CertificateInDb(**existingCertificate)
-    
-
-
