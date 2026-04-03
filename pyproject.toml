@@ -1,65 +1,84 @@
-[project]
-name = "api-certify"
-version = "0.1.0"
-description = ""
-authors = [
-    {name = "dinho", email = "claudiosilva.one@gmail.com"}
-]
-readme = "README.md"
-requires-python = ">=3.9,<4.0"
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
-
 [tool.poetry]
 name = "api-certify"
 version = "0.1.0"
-description = ""
+description = "API for certificate management"
 authors = ["dinho <claudiosilva.one@gmail.com>"]
 readme = "README.md"
+packages = [{ include = "api_certify" }]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<4.0"
+python = "^3.11"
+
 fastapi = { extras = ["standard"], version = "0.104.1" }
 uvicorn = { extras = ["standard"], version = "0.24.0" }
+
 python-dotenv = "1.0.0"
-bcrypt = "4.1.2"
+
 motor = "3.3.2"
 pymongo = "4.5.0"
-pydantic = { extras = ["email"], version = "^2.12.2" }
 motor-types = "^1.0.0b4"
-python-jose = {extras = ["cryptography"], version = "^3.5.0"}
-passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+
+pydantic = { extras = ["email"], version = "^2.12.2" }
+
+python-jose = { extras = ["cryptography"], version = "^3.5.0" }
+passlib = { extras = ["bcrypt"], version = "^1.7.4" }
+bcrypt = "4.0.1"
+
+httpx = "^0.28.1"
+asgi-lifespan = "^2.1.0"
+fastapi-lifespan-manager = "^0.1.4"
+
+mongomock-motor = "^0.0.36"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.14.0"
+
 pytest = "^8.4.2"
-taskipy = "^1.14.1"
+pytest-asyncio = "^1.3.0"
 pytest-cov = "^4.1.0"
+pytest-mock = "^3.15.1"
+
+ruff = "^0.14.0"
+
+taskipy = "^1.14.1"
+
+mongomock = "^4.3.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 79
-extend-exclude = ['migrations']
+extend-exclude = ["migrations"]
 
 [tool.ruff.lint]
-preview = true
-select = ['F', 'E', 'W', 'PL', 'PT']
+select = ["F", "E", "W", "PL", "PT"]
 
 [tool.ruff.format]
-preview = true
-quote-style = 'single'
+quote-style = "single"
 
 [tool.pytest.ini_options]
-pythonpath = '.'
-addopts = '-p no:warnings'
+pythonpath = "."
+addopts = "-p no:warnings"
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "api_certify/repositories/*",
+    "api_certify/core/database/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
 
 [tool.taskipy.tasks]
-lint = 'ruff check'
-format = 'ruff format'
-pre_format = 'ruff check --fix'
-run = 'uvicorn api_certify.main:app --reload'
-pre_test = 'task lint'
-test = 'pytest -s -x --cov=api_certify -vv'
-post_test = 'coverage html'
-kill = 'deactivate && cmd //c "taskkill /IM poetry.exe /F & taskkill /IM uvicorn.exe /F"'
+lint = "ruff check"
+format = "ruff format"
+pre_format = "ruff check --fix"
+
+run = "uvicorn api_certify.main:app --reload"
+
+pre_test = "task lint"
+test = "pytest -s -x --cov=api_certify -vv"
+post_test = "coverage html"
