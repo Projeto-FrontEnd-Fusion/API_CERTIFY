@@ -151,9 +151,12 @@ class CertificateRepository:
 
         return [CertificateInDb(**doc) for doc in docs]
 
-    # ========================================
-    # Buscar certificado por ID
-    # ========================================
+    async def find_by_access_key(self, access_key: str) -> dict | None:
+        doc = await self.certificate_collection.find_one({
+            "access_key": access_key,
+            "status": {"$in": ["available", "emitted"]},
+        })
+        return doc
 
     async def get_certificate(self, certificate_id: str) -> CertificateInDb:
 

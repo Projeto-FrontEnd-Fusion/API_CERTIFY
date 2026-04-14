@@ -7,7 +7,8 @@ from api_certify.models.certificate_model import (
     CertificateInDb,
     CreateCertificate,
 )
-
+from api_certify.schemas.responses import CertificateValidationResponse
+from api_certify.repositories.auth_repository import AuthRepository
 
 class CertificateService:
 
@@ -62,43 +63,19 @@ class CertificateService:
     # =====================================
 
     async def get_certificate_by_id(self, certificate_id: str) -> CertificateInDb:
+        response = await self.certificate_repository.get_certificate(certificate_id)
+        print(certificate_id)
+        return response
 
-        certificate = await self.certificate_repository.get_certificate(certificate_id)
-
-        if not certificate:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Certificado não encontrado",
-            )
-
-        return certificate
-
-    # =====================================
-    # Validação pública de certificado
-    # =====================================
-
-    async def validate_certificate(self, access_key: str) -> dict:
-
-        certificate = await self.certificate_repository.get_certificate_by_access_key(
-            access_key
+    async def validate_certificate(self, access_key: str) -> CertificateValidationResponse:
+        doc = await self.certificate_repository.find_by_access_key(access_key)
+        if not doc:
+            raise Exception("Certificado não encontrado ou código inválido.")
+        return CertificateValidationResponse(
+            participant_name=doc["participant_name"],
+            event_name=doc["event_name"],
+            workload=doc["workload"],
+            issued_at=doc.get("issued_at"),
+            event_start=doc.get("event_start"),
+            event_end=doc.get("event_end"),
         )
-
-        if not certificate:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Certificado não encontrado",
-            )
-
-        # regra de negócio: certificado precisa estar disponível
-        if certificate.status != "available":
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Certificado não disponível",
-            )
-
-        return {
-            "participant_name": certificate.participant_name,
-            "event_name": certificate.event_name,
-            "workload": certificate.workload,
-            "issued_at": certificate.issued_at,
-        }
