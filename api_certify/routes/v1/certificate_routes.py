@@ -1,33 +1,45 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from api_certify.schemas.responses import SucessResponse, CertificateValidationResponse
-from api_certify.models.certificate_model import (
-    CreateCertificate,
-)
-from api_certify.service.certificate_service import CertificateService
 from api_certify.dependencies import get_certificate_service
-
+from api_certify.models.certificate_model import CreateCertificate
+from api_certify.schemas.responses import SucessResponse
+from api_certify.service.certificate_service import CertificateService
 
 certificate_routes = APIRouter(prefix="/certificate", tags=["Certificates"])
 
 
-@certificate_routes.get("/validate/{access_key}", response_model=SucessResponse, status_code=200)
+# ================================
+# Validação pública de certificado
+# ================================
+@certificate_routes.get(
+    "/validate/{access_key}",
+    response_model=SucessResponse,
+    status_code=200,
+)
 async def validate_certificate(
     access_key: str,
     service: CertificateService = Depends(get_certificate_service),
 ):
-    try:
-        result = await service.validate_certificate(access_key)
-        return SucessResponse(
-            success=True,
-            message="Certificado válido.",
-            data=result.model_dump(),
-        )
-    except Exception as err:
-        raise HTTPException(status_code=404, detail=str(err))
+    certificate = await service.validate_certificate(access_key)
+
+    if not certificate:
+        raise HTTPException(status_code=404, detail="Certificado não encontrado")
+
+    return SucessResponse(
+        success=True,
+        message="Certificado válido.",
+        data={"certificate": certificate},  # ✅ formato esperado pelos testes
+    )
 
 
-@certificate_routes.post("/{user_id}", response_model=SucessResponse, status_code=201)
+# ================================
+# Criar certificado
+# ================================
+@certificate_routes.post(
+    "/{user_id}",
+    response_model=SucessResponse,
+    status_code=201,
+)
 async def request_certificate(
     user_id: str,
     payload: CreateCertificate,
@@ -46,7 +58,9 @@ async def request_certificate(
 # Listar certificados do usuário
 # ================================
 @certificate_routes.get(
-    "/users/{user_id}", response_model=SucessResponse, status_code=200
+    "/users/{user_id}",
+    response_model=SucessResponse,
+    status_code=200,
 )
 async def get_many_certificate(
     user_id: str,
@@ -62,31 +76,13 @@ async def get_many_certificate(
 
 
 # ================================
-# Validação pública de certificado
-# ================================
-@certificate_routes.get(
-    "/validate/{access_key}", response_model=SucessResponse, status_code=200
-)
-async def validate_certificate(
-    access_key: str,
-    service: CertificateService = Depends(get_certificate_service),
-):
-    certificate = await service.validate_certificate(access_key)
-
-    if not certificate:
-        raise HTTPException(status_code=404, detail="Certificado não encontrado")
-
-    return SucessResponse(
-        success=True,
-        message="Certificado validado com sucesso.",
-        data={"certificate": certificate},
-    )
-
-
-# ================================
 # Buscar certificado por ID
 # ================================
-@certificate_routes.get("/{item_id}", response_model=SucessResponse, status_code=200)
+@certificate_routes.get(
+    "/{item_id}",
+    response_model=SucessResponse,
+    status_code=200,
+)
 async def get_certificate_by_id(
     item_id: str,
     service: CertificateService = Depends(get_certificate_service),
