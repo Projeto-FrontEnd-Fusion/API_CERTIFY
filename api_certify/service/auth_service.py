@@ -1,5 +1,5 @@
 from api_certify.repositories.auth_repository import AuthRepository
-from api_certify.models.auth_model import AuthUser, AuthUserLogin, AuthUserReponse
+from api_certify.models.auth_model import AuthUser, AuthUserLogin, AuthUserReponse, UpdateUserSchema
 from api_certify.core.security import create_access_token
 from fastapi import HTTPException, status
 
@@ -28,3 +28,14 @@ class AuthService:
         })
 
         return {"auth": user, "access_token": access_token, "token_type": "bearer"}
+
+    async def update_user(
+        self, user_id: str, update_data: UpdateUserSchema, current_user_id: str
+    ) -> AuthUserReponse:
+        if user_id != current_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você só pode atualizar o seu próprio perfil",
+            )
+
+        return await self.auth_repository.update(user_id, update_data)
