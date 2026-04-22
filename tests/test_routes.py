@@ -317,3 +317,72 @@ async def test_validate_certificate_public_route(async_client_no_auth):
 
     assert response.status_code != 401
     assert response.status_code != 403
+
+
+# ==========================================
+# TESTS - UPDATE USER (PROTEGIDA)
+# ==========================================
+
+
+@pytest.mark.asyncio
+async def test_update_user_success(async_client, auth_service_mock, auth_headers):
+
+    auth_service_mock.update_user.return_value = {
+        "_id": "user123",
+        "fullname": "Nome Atualizado",
+        "email": "test@email.com",
+        "role": "user",
+        "status": "pending",
+    }
+
+    response = await async_client.put(
+        "/api/v1/auth/user123",
+        json={"fullname": "Nome Atualizado"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["message"] == "Dados atualizados com sucesso"
+
+
+@pytest.mark.asyncio
+async def test_update_user_not_found(async_client, auth_service_mock, auth_headers):
+
+    auth_service_mock.update_user.side_effect = Exception("Usuário não encontrado")
+
+    response = await async_client.put(
+        "/api/v1/auth/user123",
+        json={"fullname": "Teste Atualizado"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_user_email_conflict(async_client, auth_service_mock, auth_headers):
+
+    auth_service_mock.update_user.side_effect = Exception("Email já cadastrado")
+
+    response = await async_client.put(
+        "/api/v1/auth/user123",
+        json={"email": "existente@email.com"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_update_user_without_token(async_client_no_auth):
+
+    response = await async_client_no_auth.put(
+        "/api/v1/auth/user123",
+        json={"fullname": "Hacker"},
+    )
+
+    assert response.status_code == 403

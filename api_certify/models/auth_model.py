@@ -96,6 +96,30 @@ class AuthUserInDb(AuthUser):
     model_config = ConfigDict(use_enum_values=True, populate_by_name=True)
 
 
+DESC_PHONE = 'Número de celular do usuário'
+EXAMPLE_PHONE = '(85) 99124-8874'
+
+
+class UpdateUserSchema(BaseModel):
+    fullname: Optional[str] = Field(
+        None,
+        max_length=FULLNAME_MAX,
+        min_length=FULLNAME_MIN,
+        description=DESC_FULLNAME,
+        example=EXAMPLE_FULLNAME,
+    )
+    email: Optional[EmailStr] = Field(
+        None,
+        description=DESC_EMAIL,
+        example=EXAMPLE_EMAIL,
+    )
+    phone: Optional[str] = Field(
+        None,
+        description=DESC_PHONE,
+        example=EXAMPLE_PHONE,
+    )
+
+
 class AuthUserReponse(BaseModel):
     id: str = Field(
         ..., 
