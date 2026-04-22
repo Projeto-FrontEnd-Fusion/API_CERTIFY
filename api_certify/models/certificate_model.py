@@ -66,10 +66,9 @@ EXAMPLE_CERTIFICATE_EVENT_DATE = '2026-03-15T00:00:00.000Z'  # "?"
 EXAMPLE_CERTIFICATE_ISSUED_AT = '2024-01-15T00:00:00.000Z'
 EXAMPLE_CERTIFICATE_VALID_UNTIL = '2026-01-15T00:00:00.000Z'
 
-#corriji o de nomenclatura "available"
 class Status(str, Enum):
     PENDING = "pending"
-    AVALIABLE = "available"
+    AVAILABLE = "available"
     EXPIRED = "expired"
 
 
@@ -139,7 +138,7 @@ class CertificateInDb(BaseModel):
         ...,
         description=DESC_CERTIFICATE_STATUS,
         example=Status.PENDING,
-        examples=[Status.PENDING, Status.AVALIABLE, Status.EXPIRED],
+        examples=[Status.PENDING, Status.AVAILABLE, Status.EXPIRED],
     )
     participant_name: str = Field(
         ...,
