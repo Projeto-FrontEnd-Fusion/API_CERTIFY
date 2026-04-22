@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from api_certify.dependencies import get_certificate_service
+from api_certify.dependencies import get_certificate_service, get_current_user
 from api_certify.models.certificate_model import CreateCertificate
 from api_certify.schemas.responses import SucessResponse
 from api_certify.service.certificate_service import CertificateService
@@ -9,7 +9,7 @@ certificate_routes = APIRouter(prefix="/certificate", tags=["Certificates"])
 
 
 # ================================
-# Validação pública de certificado
+# Validação pública de certificado (SEM autenticação)
 # ================================
 @certificate_routes.get(
     "/validate/{access_key}",
@@ -28,12 +28,12 @@ async def validate_certificate(
     return SucessResponse(
         success=True,
         message="Certificado válido.",
-        data={"certificate": certificate},  # ✅ formato esperado pelos testes
+        data={"certificate": certificate},
     )
 
 
 # ================================
-# Criar certificado
+# Criar certificado (PROTEGIDA)
 # ================================
 @certificate_routes.post(
     "/{user_id}",
@@ -44,6 +44,7 @@ async def request_certificate(
     user_id: str,
     payload: CreateCertificate,
     service: CertificateService = Depends(get_certificate_service),
+    current_user: dict = Depends(get_current_user),
 ):
     certificate = await service.create_participant_certificate(user_id, payload)
 
@@ -55,7 +56,7 @@ async def request_certificate(
 
 
 # ================================
-# Listar certificados do usuário
+# Listar certificados do usuário (PROTEGIDA)
 # ================================
 @certificate_routes.get(
     "/users/{user_id}",
@@ -65,6 +66,7 @@ async def request_certificate(
 async def get_many_certificate(
     user_id: str,
     service: CertificateService = Depends(get_certificate_service),
+    current_user: dict = Depends(get_current_user),
 ):
     certificates = await service.get_many_certificates(user_id)
 
@@ -76,7 +78,7 @@ async def get_many_certificate(
 
 
 # ================================
-# Buscar certificado por ID
+# Buscar certificado por ID (PROTEGIDA)
 # ================================
 @certificate_routes.get(
     "/{item_id}",
@@ -86,6 +88,7 @@ async def get_many_certificate(
 async def get_certificate_by_id(
     item_id: str,
     service: CertificateService = Depends(get_certificate_service),
+    current_user: dict = Depends(get_current_user),
 ):
     certificate = await service.get_certificate_by_id(item_id)
 

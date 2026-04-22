@@ -13,6 +13,9 @@ import os
 
 ACCESS_KEY = os.getenv("ACCESS_KEY")
 
+if not ACCESS_KEY:
+    raise ValueError("ACCESS_KEY não configurada no .env")
+
 
 def add_years(data: datetime, anos: int) -> datetime:
     try:
@@ -106,7 +109,7 @@ class CertificateRepository:
             userId=user_id,
             participantEmail=certificate_data.email,
             participantName=certificate_data.fullname,
-            access_key=str(uuid.uuid4()),  # gera chave pública
+            access_key=str(uuid.uuid4()),
             status="available",
         )
 
@@ -151,12 +154,9 @@ class CertificateRepository:
 
         return [CertificateInDb(**doc) for doc in docs]
 
-    async def find_by_access_key(self, access_key: str) -> dict | None:
-        doc = await self.certificate_collection.find_one({
-            "access_key": access_key,
-            "status": {"$in": ["available", "emitted"]},
-        })
-        return doc
+    # ========================================
+    # Buscar certificado por ID
+    # ========================================
 
     async def get_certificate(self, certificate_id: str) -> CertificateInDb:
 
@@ -176,17 +176,9 @@ class CertificateRepository:
     # (USADO NA VALIDAÇÃO PÚBLICA)
     # ========================================
 
-    async def get_certificate_by_access_key(
-        self, access_key: str
-    ) -> CertificateInDb | None:
-
-        certificate = await self.certificate_collection.find_one(
-            {"access_key": access_key}
-        )
-
-        if not certificate:
-            return None
-
-        certificate["_id"] = str(certificate["_id"])
-
-        return CertificateInDb(**certificate)
+    async def find_by_access_key(self, access_key: str) -> dict | None:
+        doc = await self.certificate_collection.find_one({
+            "access_key": access_key,
+            "status": {"$in": ["available", "pending"]},
+        })
+        return doc

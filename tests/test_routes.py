@@ -4,9 +4,11 @@ from unittest.mock import AsyncMock
 from httpx import AsyncClient, ASGITransport
 
 from api_certify.main import app
+from api_certify.core.security import create_access_token
 from api_certify.dependencies import (
     get_auth_service,
     get_certificate_service,
+    get_current_user,
 )
 from api_certify.service.certificate_service import CertificateService
 
@@ -26,15 +28,27 @@ def certificate_service_mock():
     return AsyncMock(spec=CertificateService)
 
 
+@pytest.fixture
+def fake_current_user():
+    return {"sub": "user123", "email": "test@email.com"}
+
+
+@pytest.fixture
+def auth_headers():
+    token = create_access_token({"sub": "user123", "email": "test@email.com"})
+    return {"Authorization": f"Bearer {token}"}
+
+
 # ==========================================
 # DEPENDENCY OVERRIDE
 # ==========================================
 
 
 @pytest.fixture
-def override_dependencies(auth_service_mock, certificate_service_mock):
+def override_dependencies(auth_service_mock, certificate_service_mock, fake_current_user):
     app.dependency_overrides[get_auth_service] = lambda: auth_service_mock
     app.dependency_overrides[get_certificate_service] = lambda: certificate_service_mock
+    app.dependency_overrides[get_current_user] = lambda: fake_current_user
 
     yield
 
@@ -100,18 +114,18 @@ async def test_login_user(async_client, auth_service_mock):
 
 
 # ==========================================
-# TESTS - CERTIFICATE
+# TESTS - CERTIFICATE (PROTEGIDAS)
 # ==========================================
 
 
 @pytest.mark.asyncio
-async def test_create_certificate(async_client, certificate_service_mock):
+async def test_create_certificate(async_client, certificate_service_mock, auth_headers):
 
     certificate_service_mock.create_participant_certificate.return_value = {
         "id": "cert_123",
         "fullname": "João Silva Santos",
         "event_id": "evt_123",
-        "status": "Emitido",
+        "status": "available",
     }
 
     response = await async_client.post(
@@ -123,6 +137,7 @@ async def test_create_certificate(async_client, certificate_service_mock):
             "status": "pending",
             "email": "joao@email.com",
         },
+        headers=auth_headers,
     )
 
     assert response.status_code == 201
@@ -134,11 +149,14 @@ async def test_create_certificate(async_client, certificate_service_mock):
 
 
 @pytest.mark.asyncio
-async def test_get_many_certificates(async_client, certificate_service_mock):
+async def test_get_many_certificates(async_client, certificate_service_mock, auth_headers):
 
     certificate_service_mock.get_many_certificates.return_value = [{"id": "cert_123"}]
 
-    response = await async_client.get("/api/v1/certificate/users/user123")
+    response = await async_client.get(
+        "/api/v1/certificate/users/user123",
+        headers=auth_headers,
+    )
 
     assert response.status_code == 200
 
@@ -149,14 +167,17 @@ async def test_get_many_certificates(async_client, certificate_service_mock):
 
 
 @pytest.mark.asyncio
-async def test_get_certificate_by_id(async_client, certificate_service_mock):
+async def test_get_certificate_by_id(async_client, certificate_service_mock, auth_headers):
 
     certificate_service_mock.get_certificate_by_id.return_value = {
         "id": "cert_123",
-        "status": "Emitido",
+        "status": "available",
     }
 
-    response = await async_client.get("/api/v1/certificate/cert_123")
+    response = await async_client.get(
+        "/api/v1/certificate/cert_123",
+        headers=auth_headers,
+    )
 
     assert response.status_code == 200
 
@@ -167,7 +188,48 @@ async def test_get_certificate_by_id(async_client, certificate_service_mock):
 
 
 # ==========================================
-# TESTS - VALIDAÇÃO PÚBLICA (TASK #30)
+# TESTS - ROTAS PROTEGIDAS SEM TOKEN
+# ==========================================
+
+
+@pytest_asyncio.fixture
+async def async_client_no_auth(auth_service_mock, certificate_service_mock):
+    app.dependency_overrides[get_auth_service] = lambda: auth_service_mock
+    app.dependency_overrides[get_certificate_service] = lambda: certificate_service_mock
+
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
+
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_create_certificate_without_token(async_client_no_auth):
+    response = await async_client_no_auth.post(
+        "/api/v1/certificate/user123",
+        json={
+            "fullname": "João Silva Santos",
+            "access_key": "ABC123",
+            "event_id": "evt_123",
+            "status": "pending",
+            "email": "joao@email.com",
+        },
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_certificates_without_token(async_client_no_auth):
+    response = await async_client_no_auth.get("/api/v1/certificate/users/user123")
+
+    assert response.status_code == 403
+
+
+# ==========================================
+# TESTS - VALIDAÇÃO PÚBLICA (SEM TOKEN)
 # ==========================================
 
 
@@ -175,11 +237,11 @@ async def test_get_certificate_by_id(async_client, certificate_service_mock):
 async def test_validate_certificate_success(async_client, certificate_service_mock):
 
     certificate_service_mock.validate_certificate.return_value = {
-        "fullname": "João Silva Santos",
+        "participant_name": "João Silva Santos",
         "event_name": "Python Conference",
-        "workload": 10,
+        "workload": "10",
         "issued_at": "2026-01-01",
-        "status": "Emitido",
+        "status": "available",
     }
 
     response = await async_client.get("/api/v1/certificate/validate/ABC123")
@@ -189,9 +251,7 @@ async def test_validate_certificate_success(async_client, certificate_service_mo
     certificate = get_certificate(response.json())
 
     assert certificate is not None
-    assert certificate["status"] in ["Emitido", "Ativo"]
-
-    assert "fullname" in certificate
+    assert "participant_name" in certificate
     assert "event_name" in certificate
     assert "workload" in certificate
     assert "issued_at" in certificate
@@ -235,8 +295,8 @@ async def test_validate_certificate_case_sensitive(
     def mock_validate(key):
         if key == "ABC123":
             return {
-                "fullname": "João Silva",
-                "status": "Emitido",
+                "participant_name": "João Silva",
+                "status": "available",
             }
         return None
 
@@ -252,8 +312,8 @@ async def test_validate_certificate_case_sensitive(
 
 
 @pytest.mark.asyncio
-async def test_validate_certificate_public_route(async_client):
-
-    response = await async_client.get("/api/v1/certificate/validate/ABC123")
+async def test_validate_certificate_public_route(async_client_no_auth):
+    response = await async_client_no_auth.get("/api/v1/certificate/validate/ABC123")
 
     assert response.status_code != 401
+    assert response.status_code != 403

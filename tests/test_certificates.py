@@ -115,3 +115,99 @@ async def test_create_certificate_user_not_exist(
             user_id,
             certificate_data,
         )
+
+
+@pytest.mark.asyncio
+async def test_get_many_certificates_success(
+    certificate_service,
+    certificate_repository_mock,
+    user_id,
+    certificate_mock,
+):
+    certificate_repository_mock.get_many_certificates = AsyncMock(
+        return_value=[certificate_mock]
+    )
+
+    result = await certificate_service.get_many_certificates(user_id)
+
+    assert len(result) == 1
+    assert result[0].user_id == user_id
+
+
+@pytest.mark.asyncio
+async def test_get_many_certificates_empty(
+    certificate_service,
+    certificate_repository_mock,
+    user_id,
+):
+    certificate_repository_mock.get_many_certificates = AsyncMock(
+        return_value=[]
+    )
+
+    result = await certificate_service.get_many_certificates(user_id)
+
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_get_certificate_by_id_success(
+    certificate_service,
+    certificate_repository_mock,
+    certificate_mock,
+):
+    certificate_repository_mock.get_certificate = AsyncMock(
+        return_value=certificate_mock
+    )
+
+    result = await certificate_service.get_certificate_by_id("cert-1")
+
+    assert result.id == "cert-1"
+    assert result.event_id == "event-1"
+
+
+@pytest.mark.asyncio
+async def test_get_certificate_by_id_not_found(
+    certificate_service,
+    certificate_repository_mock,
+):
+    certificate_repository_mock.get_certificate = AsyncMock(
+        side_effect=Exception("Certificado não encontrado.")
+    )
+
+    with pytest.raises(Exception, match="Certificado não encontrado"):
+        await certificate_service.get_certificate_by_id("invalid-id")
+
+
+@pytest.mark.asyncio
+async def test_validate_certificate_success(
+    certificate_service,
+    certificate_repository_mock,
+):
+    certificate_repository_mock.find_by_access_key = AsyncMock(
+        return_value={
+            "participant_name": "Teste User",
+            "event_name": "Evento Teste",
+            "workload": "10h",
+            "issued_at": "2025-01-01T00:00:00",
+            "event_start": "2025-01-01T00:00:00",
+            "event_end": "2025-01-03T00:00:00",
+        }
+    )
+
+    result = await certificate_service.validate_certificate("key123")
+
+    assert result.participant_name == "Teste User"
+    assert result.event_name == "Evento Teste"
+
+
+@pytest.mark.asyncio
+async def test_validate_certificate_not_found(
+    certificate_service,
+    certificate_repository_mock,
+):
+    certificate_repository_mock.find_by_access_key = AsyncMock(
+        return_value=None
+    )
+
+    with pytest.raises(Exception, match="Certificado não encontrado"):
+        await certificate_service.validate_certificate("invalid-key")

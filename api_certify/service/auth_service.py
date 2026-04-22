@@ -1,17 +1,7 @@
 from api_certify.repositories.auth_repository import AuthRepository
 from api_certify.models.auth_model import AuthUser, AuthUserLogin, AuthUserReponse
-
-from jose import jwt
-from datetime import datetime, timedelta
-import os
-from dotenv import load_dotenv
+from api_certify.core.security import create_access_token
 from fastapi import HTTPException, status
-
-load_dotenv()
-
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 
 class AuthService:
@@ -24,10 +14,6 @@ class AuthService:
         return auth
 
     async def login_auth(self, auth_data: AuthUserLogin):
-        """
-        Faz login do usuário e retorna JWT
-        """
-
         user = await self.auth_repository.login(auth_data)
 
         if not user:
@@ -36,14 +22,9 @@ class AuthService:
                 detail="E-mail ou senha inválidos",
             )
 
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-
-        payload = {
+        access_token = create_access_token({
             "sub": str(user.id),
             "email": user.email,
-            "exp": expire,
-        }
-
-        access_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        })
 
         return {"auth": user, "access_token": access_token, "token_type": "bearer"}
