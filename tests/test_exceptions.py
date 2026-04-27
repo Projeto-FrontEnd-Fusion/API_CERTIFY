@@ -1,15 +1,17 @@
+import json
+
 import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
 
-from api_certify.exceptions.exeptions import (
+from api_certify.exceptions import QuotaNotEnoughException
+from api_certify.exceptions.handlers import (
+    generic_exception_handler,
     http_exception_handler,
-    validation_exception_handler,
-    QuotaNotEnoughException,
 )
 
 
-def create_fake_request():
+def create_fake_request() -> Request:
     scope = {
         "type": "http",
         "method": "GET",
@@ -21,30 +23,43 @@ def create_fake_request():
 
 @pytest.mark.asyncio
 async def test_http_exception_handler():
-
     request = create_fake_request()
-    exc = HTTPException(status_code=400, detail="Erro")
+    exc = HTTPException(
+        status_code=400,
+        detail="Requisição inválida",
+    )
 
     response = await http_exception_handler(request, exc)
 
     assert response.status_code == 400
 
+    body = json.loads(response.body)
+    assert body == {
+        "error": "HTTPException",
+        "message": "Requisição inválida",
+    }
+
 
 @pytest.mark.asyncio
-async def test_validation_exception_handler():
-
+async def test_generic_exception_handler():
     request = create_fake_request()
     exc = Exception("validation failed")
 
-    response = await validation_exception_handler(request, exc)
+    response = await generic_exception_handler(request, exc)
 
-    assert response.status_code == 422
+    assert response.status_code == 500
+
+    body = json.loads(response.body)
+    assert body == {
+        "error": "InternalServerError",
+        "message": "Ocorreu um erro interno no servidor.",
+    }
 
 
 def test_quota_not_enough_exception():
-
     exc = QuotaNotEnoughException()
 
     assert exc.status_code == 403
-    assert exc.message == "quota not enough"
-    assert exc.content() == {"error_msg": "quota not enough"}
+    assert exc.error == "QuotaNotEnoughException"
+    assert exc.message == "Cota insuficiente."
+    assert exc.detail == "Cota insuficiente."
