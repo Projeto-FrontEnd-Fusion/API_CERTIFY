@@ -1,17 +1,16 @@
-from datetime import datetime, timezone
-import uuid
-from bson.objectid import ObjectId
-
-from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
-
-from api_certify.models.certificate_model import (
-    CertificateInDb,
-    CreateCertificate,
-)
-
 import os
+import uuid
+from datetime import datetime, timezone
+
+from bson.objectid import ObjectId
+from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorDatabase
+
+from api_certify.models.certificate_model import CertificateInDb, CreateCertificate
 
 ACCESS_KEY = os.getenv("ACCESS_KEY")
+
+if not ACCESS_KEY:
+    raise ValueError("ACCESS_KEY não configurada no .env")
 
 
 def add_years(data: datetime, anos: int) -> datetime:
@@ -106,7 +105,7 @@ class CertificateRepository:
             userId=user_id,
             participantEmail=certificate_data.email,
             participantName=certificate_data.fullname,
-            access_key=str(uuid.uuid4()),  # gera chave pública
+            access_key=str(uuid.uuid4()),
             status="available",
         )
 
@@ -132,16 +131,24 @@ class CertificateRepository:
     # Buscar certificados do usuário
     # ========================================
 
-    async def get_many_certificates(self, user_id: str) -> list[CertificateInDb]:
+    async def get_many_certificates(
+        self,
+        user_id: str,
+        skip: int = 0,
+        limit: int = 10,
+    ) -> list[CertificateInDb]:
+        existing_user = await self.auth_collection.find_one({"_id": ObjectId(user_id)})
 
-        existingUser = await self.auth_collection.find_one({"_id": ObjectId(user_id)})
-
-        if not existingUser:
+        if not existing_user:
             raise Exception("Usuário não encontrado")
 
-        cursor = self.certificate_collection.find({"user_id": str(ObjectId(user_id))})
+        cursor = (
+            self.certificate_collection.find({"user_id": user_id})
+            .skip(skip)
+            .limit(limit)
+        )
 
-        docs = await cursor.to_list(length=None)
+        docs = await cursor.to_list(length=limit)
 
         if not docs:
             raise Exception("Certificados não encontrados")
@@ -151,12 +158,9 @@ class CertificateRepository:
 
         return [CertificateInDb(**doc) for doc in docs]
 
-    async def find_by_access_key(self, access_key: str) -> dict | None:
-        doc = await self.certificate_collection.find_one({
-            "access_key": access_key,
-            "status": {"$in": ["available", "emitted"]},
-        })
-        return doc
+    # ========================================
+    # Buscar certificado por ID
+    # ========================================
 
     async def get_certificate(self, certificate_id: str) -> CertificateInDb:
 
@@ -176,17 +180,11 @@ class CertificateRepository:
     # (USADO NA VALIDAÇÃO PÚBLICA)
     # ========================================
 
-    async def get_certificate_by_access_key(
-        self, access_key: str
-    ) -> CertificateInDb | None:
-
-        certificate = await self.certificate_collection.find_one(
-            {"access_key": access_key}
+    async def find_by_access_key(self, access_key: str) -> dict | None:
+        doc = await self.certificate_collection.find_one(
+            {
+                "access_key": access_key,
+                "status": {"$in": ["available", "pending"]},
+            }
         )
-
-        if not certificate:
-            return None
-
-        certificate["_id"] = str(certificate["_id"])
-
-        return CertificateInDb(**certificate)
+        return doc

@@ -1,17 +1,7 @@
 from api_certify.repositories.auth_repository import AuthRepository
-from api_certify.models.auth_model import AuthUser, AuthUserLogin, AuthUserReponse
-
-from jose import jwt
-from datetime import datetime, timedelta
-import os
-from dotenv import load_dotenv
+from api_certify.models.auth_model import AuthUser, AuthUserLogin, AuthUserReponse, UpdateUserSchema
+from api_certify.core.security import create_access_token
 from fastapi import HTTPException, status
-
-load_dotenv()
-
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 
 class AuthService:
@@ -24,10 +14,6 @@ class AuthService:
         return auth
 
     async def login_auth(self, auth_data: AuthUserLogin):
-        """
-        Faz login do usuário e retorna JWT
-        """
-
         user = await self.auth_repository.login(auth_data)
 
         if not user:
@@ -36,14 +22,20 @@ class AuthService:
                 detail="E-mail ou senha inválidos",
             )
 
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-
-        payload = {
+        access_token = create_access_token({
             "sub": str(user.id),
             "email": user.email,
-            "exp": expire,
-        }
-
-        access_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        })
 
         return {"auth": user, "access_token": access_token, "token_type": "bearer"}
+
+    async def update_user(
+        self, user_id: str, update_data: UpdateUserSchema, current_user_id: str
+    ) -> AuthUserReponse:
+        if user_id != current_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você só pode atualizar o seu próprio perfil",
+            )
+
+        return await self.auth_repository.update(user_id, update_data)
