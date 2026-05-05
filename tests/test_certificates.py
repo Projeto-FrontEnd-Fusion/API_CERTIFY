@@ -54,12 +54,14 @@ async def test_create_certificate_success(
     certificate_service,
     certificate_repository_mock,
     auth_repository_mock,
+    event_repository_mock,
     user_id,
     certificate_data,
     certificate_mock,
 ):
 
     auth_repository_mock.isExistAuth = AsyncMock(return_value=True)
+    event_repository_mock.exists = AsyncMock(return_value=True)
 
     certificate_repository_mock.find_existing_certificate = AsyncMock(return_value=None)
 
@@ -81,12 +83,14 @@ async def test_create_certificate_existing(
     certificate_service,
     certificate_repository_mock,
     auth_repository_mock,
+    event_repository_mock,
     user_id,
     certificate_data,
     certificate_mock,
 ):
 
     auth_repository_mock.isExistAuth = AsyncMock(return_value=True)
+    event_repository_mock.exists = AsyncMock(return_value=True)
 
     certificate_repository_mock.find_existing_certificate = AsyncMock(
         return_value=certificate_mock
@@ -211,3 +215,21 @@ async def test_validate_certificate_not_found(
 
     with pytest.raises(Exception, match="Certificado não encontrado"):
         await certificate_service.validate_certificate("invalid-key")
+
+
+@pytest.mark.asyncio
+async def test_create_certificate_event_not_found(
+    certificate_service,
+    auth_repository_mock,
+    event_repository_mock,
+    user_id,
+    certificate_data,
+):
+    auth_repository_mock.isExistAuth = AsyncMock(return_value=True)
+    event_repository_mock.exists = AsyncMock(return_value=False)
+
+    with pytest.raises(Exception):
+        await certificate_service.create_participant_certificate(
+            user_id,
+            certificate_data,
+        )

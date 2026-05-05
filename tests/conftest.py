@@ -39,6 +39,17 @@ async def certificate_repository_mock():
     return repo
 
 
+@pytest_asyncio.fixture
+async def event_repository_mock():
+    repo = AsyncMock()
+
+    repo.exists.return_value = True
+    repo.create.return_value = None
+    repo.find_by_id.return_value = None
+
+    return repo
+
+
 # -----------------------------
 # Services
 # -----------------------------
@@ -50,8 +61,8 @@ async def auth_service(auth_repository_mock):
 
 
 @pytest_asyncio.fixture
-async def certificate_service(certificate_repository_mock, auth_repository_mock):
-    return CertificateService(certificate_repository_mock, auth_repository_mock)
+async def certificate_service(certificate_repository_mock, auth_repository_mock, event_repository_mock):
+    return CertificateService(certificate_repository_mock, auth_repository_mock, event_repository_mock)
 
 
 # -----------------------------

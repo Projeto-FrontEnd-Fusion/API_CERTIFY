@@ -7,6 +7,8 @@ from api_certify.service.auth_service import AuthService
 from api_certify.repositories.auth_repository import AuthRepository
 from api_certify.service.certificate_service import CertificateService
 from api_certify.repositories.certificate_repository import CertificateRepository
+from api_certify.service.event_service import EventService
+from api_certify.repositories.event_repository import EventRepository
 
 
 security_scheme = HTTPBearer()
@@ -44,6 +46,20 @@ def get_auth_service(
     return AuthService(auth_repository)
 
 
+# ---------- EVENT ----------
+
+
+async def get_event_repository() -> EventRepository:
+    database = await db_mongo.get_database()
+    return EventRepository(database)
+
+
+def get_event_service(
+    event_repository: EventRepository = Depends(get_event_repository),
+) -> EventService:
+    return EventService(event_repository)
+
+
 # ---------- CERTIFICATE ----------
 
 
@@ -55,5 +71,6 @@ async def get_certificate_repository() -> CertificateRepository:
 def get_certificate_service(
     certificate_repository: CertificateRepository = Depends(get_certificate_repository),
     auth_repository: AuthRepository = Depends(get_auth_repository),
+    event_repository: EventRepository = Depends(get_event_repository),
 ) -> CertificateService:
-    return CertificateService(certificate_repository, auth_repository)
+    return CertificateService(certificate_repository, auth_repository, event_repository)

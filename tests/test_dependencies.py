@@ -9,13 +9,17 @@ from api_certify.dependencies import (
     get_auth_service,
     get_certificate_repository,
     get_certificate_service,
+    get_event_repository,
+    get_event_service,
     get_current_user,
 )
 
 from api_certify.service.auth_service import AuthService
 from api_certify.service.certificate_service import CertificateService
+from api_certify.service.event_service import EventService
 from api_certify.repositories.auth_repository import AuthRepository
 from api_certify.repositories.certificate_repository import CertificateRepository
+from api_certify.repositories.event_repository import EventRepository
 
 
 @pytest.fixture
@@ -62,10 +66,33 @@ def test_get_certificate_service():
 
     fake_cert_repo = MagicMock()
     fake_auth_repo = MagicMock()
+    fake_event_repo = MagicMock()
 
-    service = get_certificate_service(fake_cert_repo, fake_auth_repo)
+    service = get_certificate_service(fake_cert_repo, fake_auth_repo, fake_event_repo)
 
     assert isinstance(service, CertificateService)
+
+
+@pytest.mark.asyncio
+async def test_get_event_repository(mocker, fake_database):
+
+    mocker.patch(
+        "api_certify.dependencies.db_mongo.get_database",
+        new=AsyncMock(return_value=fake_database),
+    )
+
+    repo = await get_event_repository()
+
+    assert isinstance(repo, EventRepository)
+
+
+def test_get_event_service():
+
+    fake_repo = MagicMock()
+
+    service = get_event_service(fake_repo)
+
+    assert isinstance(service, EventService)
 
 
 @pytest.mark.asyncio
