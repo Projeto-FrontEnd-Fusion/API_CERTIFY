@@ -1,17 +1,17 @@
+from unittest.mock import AsyncMock
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
-from api_certify.main import app
 from api_certify.core.security import create_access_token
 from api_certify.dependencies import (
     get_auth_service,
     get_certificate_service,
     get_current_user,
 )
+from api_certify.main import app
 from api_certify.service.certificate_service import CertificateService
-
 
 # ==========================================
 # MOCK SERVICES
@@ -45,7 +45,9 @@ def auth_headers():
 
 
 @pytest.fixture
-def override_dependencies(auth_service_mock, certificate_service_mock, fake_current_user):
+def override_dependencies(
+    auth_service_mock, certificate_service_mock, fake_current_user
+):
     app.dependency_overrides[get_auth_service] = lambda: auth_service_mock
     app.dependency_overrides[get_certificate_service] = lambda: certificate_service_mock
     app.dependency_overrides[get_current_user] = lambda: fake_current_user
@@ -80,11 +82,13 @@ def get_certificate(body: dict):
     return body.get("data", {}).get("certificate")
 
 
-def assert_error_response(body: dict, message: str, status_code: int = 404):
-    assert body["success"] is False
+def assert_error_response(
+    body: dict,
+    message: str,
+    error: str = "HTTPException",
+):
+    assert body["error"] == error
     assert body["message"] == message
-    assert body["error_code"] == f"HTTP_{status_code}"
-    assert "details" in body
 
 
 # ==========================================
@@ -149,7 +153,9 @@ async def test_create_certificate(async_client, certificate_service_mock, auth_h
 
 
 @pytest.mark.asyncio
-async def test_get_many_certificates(async_client, certificate_service_mock, auth_headers):
+async def test_get_many_certificates(
+    async_client, certificate_service_mock, auth_headers
+):
 
     certificate_service_mock.get_many_certificates.return_value = [{"id": "cert_123"}]
 
@@ -167,7 +173,9 @@ async def test_get_many_certificates(async_client, certificate_service_mock, aut
 
 
 @pytest.mark.asyncio
-async def test_get_certificate_by_id(async_client, certificate_service_mock, auth_headers):
+async def test_get_certificate_by_id(
+    async_client, certificate_service_mock, auth_headers
+):
 
     certificate_service_mock.get_certificate_by_id.return_value = {
         "id": "cert_123",
@@ -364,7 +372,9 @@ async def test_update_user_not_found(async_client, auth_service_mock, auth_heade
 
 
 @pytest.mark.asyncio
-async def test_update_user_email_conflict(async_client, auth_service_mock, auth_headers):
+async def test_update_user_email_conflict(
+    async_client, auth_service_mock, auth_headers
+):
 
     auth_service_mock.update_user.side_effect = Exception("Email já cadastrado")
 
