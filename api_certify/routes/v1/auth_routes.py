@@ -60,6 +60,24 @@ async def login_auth(
             )
 
 
+@auth_routes.get("/me", response_model=SucessResponse, status_code=200)
+async def get_me(
+    current_user: dict = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+):
+    try:
+        user = await service.get_me(current_user["sub"])
+
+        return SucessResponse(
+            success=True,
+            message="Usuário autenticado",
+            data={"auth": user},
+        )
+
+    except Exception as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
+
 @auth_routes.put("/{user_id}", response_model=SucessResponse, status_code=200)
 async def update_user(
     user_id: str,
@@ -68,9 +86,7 @@ async def update_user(
     current_user: dict = Depends(get_current_user),
 ):
     try:
-        updated = await service.update_user(
-            user_id, update_data, current_user["sub"]
-        )
+        updated = await service.update_user(user_id, update_data, current_user["sub"])
 
         return SucessResponse(
             success=True,
