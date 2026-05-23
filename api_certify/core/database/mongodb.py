@@ -20,10 +20,21 @@ class MongoDBConnection:
 
     async def connect(self, db_url: str, db_name: str) -> None:
         try:
-            self._client = AsyncIOMotorClient(db_url)
+            self._client = AsyncIOMotorClient(
+                db_url,
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=5000,
+            )
+            # Ping para validar conexão real
+            await self._client.admin.command('ping')
             self._database = self._client[db_name]
         except Exception as e:
-            raise RuntimeError(f'Falha ao conectar ao MongoDB: {e}')
+            self._client = None
+            self._database = None
+            raise RuntimeError(
+                f'Falha ao conectar ao MongoDB: {e}. '
+                'Verifique se o servidor está ativo e a DB_URL está correta.'
+            )
 
     async def disconnect(self) -> None:
         if self._client:
@@ -33,8 +44,15 @@ class MongoDBConnection:
 
     async def get_database(self) -> AsyncIOMotorDatabase:
         if self._database is None:
-            raise RuntimeError('Aplicação não conectada ao MongoDB Atlas')
+            raise RuntimeError(
+                'Aplicação não conectada ao MongoDB. '
+                'Verifique se o banco de dados está ativo.'
+            )
         return self._database
+
+    @property
+    def is_connected(self) -> bool:
+        return self._client is not None and self._database is not None
 
 
 db_mongo = MongoDBConnection()
