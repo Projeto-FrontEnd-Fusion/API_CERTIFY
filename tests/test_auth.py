@@ -121,3 +121,23 @@ async def test_update_user_email_conflict(auth_service, auth_repository_mock):
 
     with pytest.raises(Exception, match="Email já cadastrado"):
         await auth_service.update_user("1", update_data, "1")
+
+
+@pytest.mark.asyncio
+async def test_get_me_success(auth_service, auth_repository_mock):
+
+    auth_repository_mock.get_user_by_id = AsyncMock(
+        return_value=AuthUserReponse(
+            _id="1",
+            fullname="Teste User",
+            email="teste@example.com",
+            role=Role.USER,
+            status="available",
+        )
+    )
+
+    result = await auth_service.get_me("1")
+
+    assert result.id == "1"
+    assert result.email == "teste@example.com"
+    assert result.fullname == "Teste User"

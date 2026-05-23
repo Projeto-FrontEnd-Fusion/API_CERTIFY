@@ -1,5 +1,10 @@
 from api_certify.repositories.auth_repository import AuthRepository
-from api_certify.models.auth_model import AuthUser, AuthUserLogin, AuthUserReponse, UpdateUserSchema
+from api_certify.models.auth_model import (
+    AuthUser,
+    AuthUserLogin,
+    AuthUserReponse,
+    UpdateUserSchema,
+)
 from api_certify.core.security import create_access_token
 from fastapi import HTTPException, status
 
@@ -22,12 +27,17 @@ class AuthService:
                 detail="E-mail ou senha inválidos",
             )
 
-        access_token = create_access_token({
-            "sub": str(user.id),
-            "email": user.email,
-        })
+        access_token = create_access_token(
+            {
+                "sub": str(user.id),
+                "email": user.email,
+            }
+        )
 
         return {"auth": user, "access_token": access_token, "token_type": "bearer"}
+
+    async def get_me(self, user_id: str) -> AuthUserReponse:
+        return await self.auth_repository.get_user_by_id(user_id)
 
     async def update_user(
         self, user_id: str, update_data: UpdateUserSchema, current_user_id: str
