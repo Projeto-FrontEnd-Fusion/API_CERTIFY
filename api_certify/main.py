@@ -58,20 +58,18 @@ async def database_error_middleware(request: Request, call_next):
             status_code=503,
             content={
                 "success": False,
-                "message": "Serviço temporariamente indisponível. Não foi possível conectar ao banco de dados.",
-                "error_code": "DATABASE_UNAVAILABLE",
-                "details": "Tente novamente em alguns instantes.",
+                "message": "Serviço temporariamente indisponível.",
+                "error_code": "SERVICE_UNAVAILABLE",
             },
         )
     except RuntimeError as e:
-        if "MongoDB" in str(e) or "conectada" in str(e):
+        if "conecta" in str(e).lower():
             return JSONResponse(
                 status_code=503,
                 content={
                     "success": False,
-                    "message": "Serviço temporariamente indisponível. Não foi possível conectar ao banco de dados.",
-                    "error_code": "DATABASE_UNAVAILABLE",
-                    "details": "Tente novamente em alguns instantes.",
+                    "message": "Serviço temporariamente indisponível.",
+                    "error_code": "SERVICE_UNAVAILABLE",
                 },
             )
         raise
