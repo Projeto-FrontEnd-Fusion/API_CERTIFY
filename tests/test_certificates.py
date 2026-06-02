@@ -124,13 +124,20 @@ async def test_get_many_certificates_success(
     certificate_mock,
 ):
     certificate_repository_mock.get_many_certificates = AsyncMock(
-        return_value=[certificate_mock]
+        return_value={
+            "items": [certificate_mock],
+            "total": 1,
+            "page": 1,
+            "limit": 20,
+            "total_pages": 1,
+        }
     )
 
     result = await certificate_service.get_many_certificates(user_id)
 
-    assert len(result) == 1
-    assert result[0].user_id == user_id
+    assert result["total"] == 1
+    assert len(result["items"]) == 1
+    assert result["items"][0].user_id == user_id
 
 
 @pytest.mark.asyncio
@@ -139,11 +146,19 @@ async def test_get_many_certificates_empty(
     certificate_repository_mock,
     user_id,
 ):
-    certificate_repository_mock.get_many_certificates = AsyncMock(return_value=[])
+    certificate_repository_mock.get_many_certificates = AsyncMock(
+        return_value={
+            "items": [],
+            "total": 0,
+            "page": 1,
+            "limit": 20,
+            "total_pages": 0,
+        }
+    )
 
     result = await certificate_service.get_many_certificates(user_id)
 
-    assert result == []
+    assert result["items"] == []
 
 
 @pytest.mark.asyncio
@@ -153,45 +168,63 @@ async def test_get_many_certificates_with_pagination(
     user_id,
     certificate_mock,
 ):
+    paginated_response = {
+        "items": [certificate_mock],
+        "total": 1,
+        "page": 2,
+        "limit": 10,
+        "total_pages": 1,
+    }
+
     certificate_repository_mock.get_many_certificates = AsyncMock(
-        return_value=[certificate_mock]
+        return_value=paginated_response
     )
 
     result = await certificate_service.get_many_certificates(
         user_id,
-        skip=5,
+        page=2,
         limit=10,
     )
 
     certificate_repository_mock.get_many_certificates.assert_awaited_once_with(
         user_id=user_id,
-        skip=5,
+        skip=10,
         limit=10,
+        page=2,
     )
 
-    assert len(result) == 1
-    assert result[0].user_id == user_id
+    assert result["page"] == 2
+    assert result["limit"] == 10
+    assert result["total"] == 1
+    assert len(result["items"]) == 1
 
 
 @pytest.mark.asyncio
-async def test_get_many_certificates_limit_capped_at_100(
+async def test_get_many_certificates_empty_page(
     certificate_service,
     certificate_repository_mock,
     user_id,
 ):
-    certificate_repository_mock.get_many_certificates = AsyncMock(return_value=[])
+    paginated_response = {
+        "items": [],
+        "total": 5,
+        "page": 999,
+        "limit": 10,
+        "total_pages": 1,
+    }
 
-    await certificate_service.get_many_certificates(
+    certificate_repository_mock.get_many_certificates = AsyncMock(
+        return_value=paginated_response
+    )
+
+    result = await certificate_service.get_many_certificates(
         user_id,
-        skip=0,
-        limit=150,
+        page=999,
+        limit=10,
     )
 
-    certificate_repository_mock.get_many_certificates.assert_awaited_once_with(
-        user_id=user_id,
-        skip=0,
-        limit=100,
-    )
+    assert result["items"] == []
+    assert result["page"] == 999
 
 
 # -------------------------

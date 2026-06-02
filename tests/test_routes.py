@@ -154,10 +154,18 @@ async def test_create_certificate(async_client, certificate_service_mock, auth_h
 
 @pytest.mark.asyncio
 async def test_get_many_certificates(
-    async_client, certificate_service_mock, auth_headers
+    async_client,
+    certificate_service_mock,
+    auth_headers,
 ):
 
-    certificate_service_mock.get_many_certificates.return_value = [{"id": "cert_123"}]
+    certificate_service_mock.get_many_certificates.return_value = {
+        "items": [{"id": "cert_123"}],
+        "total": 1,
+        "page": 1,
+        "limit": 20,
+        "total_pages": 1,
+    }
 
     response = await async_client.get(
         "/api/v1/certificate/users/user123",
@@ -169,7 +177,12 @@ async def test_get_many_certificates(
     body = response.json()
 
     assert body["success"] is True
-    assert isinstance(body["data"]["certificates"], list)
+
+    assert isinstance(body["data"]["items"], list)
+    assert body["data"]["total"] == 1
+    assert body["data"]["page"] == 1
+    assert body["data"]["limit"] == 20
+    assert body["data"]["total_pages"] == 1
 
 
 @pytest.mark.asyncio
