@@ -1,5 +1,6 @@
 import os
 import uuid
+import math
 from datetime import datetime, timezone
 
 from bson.objectid import ObjectId
@@ -135,28 +136,41 @@ class CertificateRepository:
         self,
         user_id: str,
         skip: int = 0,
-        limit: int = 10,
+        limit: int = 20,
+        page: int = 1,
     ) -> list[CertificateInDb]:
         existing_user = await self.auth_collection.find_one({"_id": ObjectId(user_id)})
 
         if not existing_user:
             raise Exception("Usuário não encontrado")
 
+        filter_query = {"user_id": user_id}
+
+        total = await self.certificate_collection.count_documents(filter_query)
+
         cursor = (
-            self.certificate_collection.find({"user_id": user_id})
+            self.certificate_collection.find(filter_query)
+            .sort("issued_at", -1)
             .skip(skip)
             .limit(limit)
         )
 
         docs = await cursor.to_list(length=limit)
 
-        if not docs:
-            raise Exception("Certificados não encontrados")
-
         for doc in docs:
             doc["_id"] = str(doc["_id"])
 
-        return [CertificateInDb(**doc) for doc in docs]
+        certificates = [CertificateInDb(**doc) for doc in docs]
+
+        total_pages = math.ceil(total / limit) if total > 0 else 0
+
+        return {
+            "items": certificates,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "total_pages": total_pages,
+        }
 
     # ========================================
     # Buscar certificado por ID

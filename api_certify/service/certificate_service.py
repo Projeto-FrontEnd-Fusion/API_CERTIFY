@@ -53,15 +53,16 @@ class CertificateService:
     async def get_many_certificates(
         self,
         user_id: str,
-        skip: int = 0,
-        limit: int = 10,
-    ) -> list[CertificateInDb]:
-        limit = min(limit, 100)
+        page: int = 1,
+        limit: int = 20,
+    ):
+        skip = (page - 1) * limit
 
         return await self.certificate_repository.get_many_certificates(
             user_id=user_id,
             skip=skip,
             limit=limit,
+            page=page,
         )
 
     # =====================================
