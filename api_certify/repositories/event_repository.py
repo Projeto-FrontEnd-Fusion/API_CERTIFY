@@ -10,6 +10,7 @@ class EventRepository:
 
     def __init__(self, database: AsyncIOMotorDatabase):
         self.collection: AsyncIOMotorCollection = database.get_collection("events")
+        self.certificate_collection: AsyncIOMotorCollection = database.get_collection("certificates")
 
     async def create(self, event_data: CreateEvent) -> EventInDb:
         event_dict = event_data.model_dump()
@@ -49,3 +50,16 @@ class EventRepository:
 
         doc = await self.collection.find_one({"_id": oid})
         return doc is not None
+
+    async def has_certificates(self, event_id: str) -> bool:
+        count = await self.certificate_collection.count_documents({"event_id": event_id})
+        return count > 0
+
+    async def delete(self, event_id: str) -> bool:
+        try:
+            oid = ObjectId(event_id)
+        except (InvalidId, Exception):
+            return False
+
+        result = await self.collection.delete_one({"_id": oid})
+        return result.deleted_count > 0

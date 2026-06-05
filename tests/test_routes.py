@@ -561,3 +561,67 @@ async def test_get_event_not_found(async_client, event_service_mock):
     response = await async_client.get("/api/v1/events/invalid_id")
 
     assert response.status_code == 404
+
+
+# ==========================================
+# TESTS - DELETE EVENT
+# ==========================================
+
+
+@pytest.mark.asyncio
+async def test_delete_event_success(async_client, event_service_mock, auth_headers):
+
+    event_service_mock.delete_event.return_value = None
+
+    response = await async_client.delete(
+        "/api/v1/events/evt_123",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["message"] == "Evento excluído com sucesso"
+
+
+@pytest.mark.asyncio
+async def test_delete_event_not_found(async_client, event_service_mock, auth_headers):
+    from fastapi import HTTPException
+
+    event_service_mock.delete_event.side_effect = HTTPException(
+        status_code=404, detail="Evento não encontrado"
+    )
+
+    response = await async_client.delete(
+        "/api/v1/events/invalid_id",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_event_with_certificates(async_client, event_service_mock, auth_headers):
+    from fastapi import HTTPException
+
+    event_service_mock.delete_event.side_effect = HTTPException(
+        status_code=409,
+        detail="Não é possível excluir um evento que já possui certificados emitidos.",
+    )
+
+    response = await async_client.delete(
+        "/api/v1/events/evt_123",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_event_without_token(async_client_no_auth):
+
+    response = await async_client_no_auth.delete("/api/v1/events/evt_123")
+
+    assert response.status_code == 403
