@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from api_certify.models.certificate_model import CertificateInDb, CreateCertificate
 from api_certify.repositories.auth_repository import AuthRepository
 from api_certify.repositories.certificate_repository import CertificateRepository
+from api_certify.repositories.event_repository import EventRepository
 from api_certify.schemas.responses import CertificateValidationResponse
 
 
@@ -12,9 +13,11 @@ class CertificateService:
         self,
         certificate_repository: CertificateRepository,
         auth_repository: AuthRepository,
+        event_repository: EventRepository,
     ):
         self.certificate_repository = certificate_repository
         self.auth_repository = auth_repository
+        self.event_repository = event_repository
 
     # =====================================
     # Criar certificado
@@ -31,6 +34,15 @@ class CertificateService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Usuário não existe, certificado não pode ser criado",
+            )
+
+        # Verifica se o evento existe
+        event_exists = await self.event_repository.exists(certificate_data.event_id)
+
+        if not event_exists:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Evento não encontrado. Não é possível emitir certificado para um evento inexistente.",
             )
 
         # Verifica se já existe certificado para esse evento

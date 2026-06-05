@@ -108,3 +108,41 @@ async def update_user(
 
         else:
             raise HTTPException(status_code=400, detail=error_message)
+
+
+@auth_routes.post("/refresh", response_model=SucessResponse, status_code=200)
+async def refresh_token(
+    body: dict,
+    service: AuthService = Depends(get_auth_service),
+):
+    refresh_token = body.get("refresh_token")
+
+    if not refresh_token:
+        raise HTTPException(status_code=400, detail="refresh_token é obrigatório")
+
+    result = await service.refresh_access_token(refresh_token)
+
+    return SucessResponse(
+        success=True,
+        message="Token renovado com sucesso",
+        data=result,
+    )
+
+
+@auth_routes.post("/logout", response_model=SucessResponse, status_code=200)
+async def logout(
+    body: dict,
+    current_user: dict = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+):
+    refresh_token = body.get("refresh_token")
+
+    if not refresh_token:
+        raise HTTPException(status_code=400, detail="refresh_token é obrigatório")
+
+    result = await service.logout(refresh_token)
+
+    return SucessResponse(
+        success=True,
+        message=result["message"],
+    )
