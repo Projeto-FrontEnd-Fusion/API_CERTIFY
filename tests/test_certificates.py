@@ -313,11 +313,15 @@ async def test_create_certificate_event_not_found(
     user_id,
     certificate_data,
 ):
+    from fastapi import HTTPException
+
     auth_repository_mock.isExistAuth = AsyncMock(return_value=True)
     event_repository_mock.exists = AsyncMock(return_value=False)
 
-    with pytest.raises(Exception):
+    with pytest.raises(HTTPException) as exc_info:
         await certificate_service.create_participant_certificate(
             user_id,
             certificate_data,
         )
+
+    assert exc_info.value.status_code == 404

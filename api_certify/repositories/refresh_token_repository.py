@@ -1,6 +1,10 @@
+import hashlib
 from datetime import datetime, timezone
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
-from bson import ObjectId
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 class RefreshTokenRepository:
@@ -9,9 +13,11 @@ class RefreshTokenRepository:
         self.collection: AsyncIOMotorCollection = database.get_collection("refresh_tokens")
 
     async def create(self, user_id: str, token: str, expires_at: datetime) -> dict:
+        token_hash = _hash_token(token)
+
         doc = {
             "user_id": user_id,
-            "token": token,
+            "token_hash": token_hash,
             "expires_at": expires_at,
             "created_at": datetime.now(timezone.utc),
             "revoked": False,
@@ -19,7 +25,7 @@ class RefreshTokenRepository:
 
         await self.collection.insert_one(doc)
 
-        # Limitar a 5 tokens ativos por usuário (remover os mais antigos)
+        # Limitar a 5 tokens ativos por usuário
         active_tokens = await self.collection.count_documents({
             "user_id": user_id,
             "revoked": False,
@@ -40,8 +46,10 @@ class RefreshTokenRepository:
         return doc
 
     async def find_valid_token(self, token: str) -> dict | None:
+        token_hash = _hash_token(token)
+
         doc = await self.collection.find_one({
-            "token": token,
+            "token_hash": token_hash,
             "revoked": False,
         })
 
@@ -56,8 +64,10 @@ class RefreshTokenRepository:
         return doc
 
     async def revoke(self, token: str) -> bool:
+        token_hash = _hash_token(token)
+
         result = await self.collection.update_one(
-            {"token": token},
+            {"token_hash": token_hash},
             {"$set": {"revoked": True}},
         )
         return result.modified_count > 0

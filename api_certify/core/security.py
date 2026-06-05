@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 import os
+import uuid
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -57,6 +58,7 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> 
 
     to_encode = data.copy()
     to_encode["type"] = "refresh"
+    to_encode["jti"] = str(uuid.uuid4())
 
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta

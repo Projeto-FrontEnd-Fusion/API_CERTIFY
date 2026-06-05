@@ -32,8 +32,8 @@ class MongoDBConnection:
             self._client = None
             self._database = None
             raise RuntimeError(
-                f'Falha ao conectar ao MongoDB: {e}. '
-                'Verifique se o servidor está ativo e a DB_URL está correta.'
+                'Falha ao conectar ao banco de dados. '
+                'Verifique se o servidor está ativo e as credenciais estão corretas.'
             )
 
     async def disconnect(self) -> None:

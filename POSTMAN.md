@@ -86,12 +86,69 @@ POST /auth/login
       "status": "pending"
     },
     "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
     "token_type": "bearer"
   }
 }
 ```
 
-> Copiar o `access_token` para usar nas rotas protegidas
+> ⚠️ Copiar o `access_token` para usar nas rotas protegidas
+> ⚠️ Copiar o `refresh_token` para renovação de tokens
+
+---
+
+### 4. Renovar Token (Refresh)
+
+```
+POST /auth/refresh
+```
+
+**Body:**
+```json
+{
+  "refresh_token": "<refresh_token_do_login>"
+}
+```
+
+**Resposta esperada (200):**
+```json
+{
+  "success": true,
+  "message": "Token renovado com sucesso",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+    "token_type": "bearer"
+  }
+}
+```
+
+> ⚠️ O refresh_token antigo é invalidado (rotação). Use o novo.
+
+---
+
+### 5. Logout
+
+```
+POST /auth/logout
+```
+
+**Header:** `Authorization: Bearer <access_token>`
+
+**Body:**
+```json
+{
+  "refresh_token": "<refresh_token_atual>"
+}
+```
+
+**Resposta esperada (200):**
+```json
+{
+  "success": true,
+  "message": "Sessão encerrada com sucesso"
+}
+```
 
 ---
 
@@ -264,7 +321,7 @@ POST /certificate/{user_id}
 {
   "fullname": "João Silva Santos",
   "email": "joao@email.com",
-  "access_key": "EwzvV9GJZwaMXgEg0fjRiQ",
+  "access_key": "<ACCESS_KEY_DO_ENV>",
   "event_id": "id_do_evento_criado",
   "status": "pending"
 }
@@ -384,7 +441,7 @@ GET /certificate/{certificate_id}
 | `token` | (preencher após login) |
 | `user_id` | (preencher após signup/login) |
 | `event_id` | (preencher após criar evento) |
-| `access_key_system` | `EwzvV9GJZwaMXgEg0fjRiQ` |
+| `access_key_system` | `<sua_access_key_do_env>` |
 
 ### Header padrão para rotas protegidas:
 
