@@ -60,6 +60,24 @@ async def login_auth(
             )
 
 
+@auth_routes.get("/me", response_model=SucessResponse, status_code=200)
+async def get_me(
+    current_user: dict = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+):
+    try:
+        user = await service.get_me(current_user["sub"])
+
+        return SucessResponse(
+            success=True,
+            message="Usuário autenticado",
+            data={"auth": user},
+        )
+
+    except Exception as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
+
 @auth_routes.put("/{user_id}", response_model=SucessResponse, status_code=200)
 async def update_user(
     user_id: str,
@@ -68,9 +86,7 @@ async def update_user(
     current_user: dict = Depends(get_current_user),
 ):
     try:
-        updated = await service.update_user(
-            user_id, update_data, current_user["sub"]
-        )
+        updated = await service.update_user(user_id, update_data, current_user["sub"])
 
         return SucessResponse(
             success=True,
@@ -92,3 +108,41 @@ async def update_user(
 
         else:
             raise HTTPException(status_code=400, detail=error_message)
+
+
+@auth_routes.post("/refresh", response_model=SucessResponse, status_code=200)
+async def refresh_token(
+    body: dict,
+    service: AuthService = Depends(get_auth_service),
+):
+    refresh_token = body.get("refresh_token")
+
+    if not refresh_token:
+        raise HTTPException(status_code=400, detail="refresh_token é obrigatório")
+
+    result = await service.refresh_access_token(refresh_token)
+
+    return SucessResponse(
+        success=True,
+        message="Token renovado com sucesso",
+        data=result,
+    )
+
+
+@auth_routes.post("/logout", response_model=SucessResponse, status_code=200)
+async def logout(
+    body: dict,
+    current_user: dict = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+):
+    refresh_token = body.get("refresh_token")
+
+    if not refresh_token:
+        raise HTTPException(status_code=400, detail="refresh_token é obrigatório")
+
+    result = await service.logout(refresh_token)
+
+    return SucessResponse(
+        success=True,
+        message=result["message"],
+    )

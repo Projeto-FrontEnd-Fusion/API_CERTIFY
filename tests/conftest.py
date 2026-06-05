@@ -28,6 +28,18 @@ async def auth_repository_mock():
 
 
 @pytest_asyncio.fixture
+async def refresh_token_repository_mock():
+    repo = AsyncMock()
+
+    repo.create.return_value = {}
+    repo.find_valid_token.return_value = None
+    repo.revoke.return_value = True
+    repo.revoke_all_for_user.return_value = 0
+
+    return repo
+
+
+@pytest_asyncio.fixture
 async def certificate_repository_mock():
     repo = AsyncMock()
 
@@ -56,8 +68,8 @@ async def event_repository_mock():
 
 
 @pytest_asyncio.fixture
-async def auth_service(auth_repository_mock):
-    return AuthService(auth_repository_mock)
+async def auth_service(auth_repository_mock, refresh_token_repository_mock):
+    return AuthService(auth_repository_mock, refresh_token_repository_mock)
 
 
 @pytest_asyncio.fixture

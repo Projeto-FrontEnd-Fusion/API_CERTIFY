@@ -5,6 +5,7 @@ from api_certify.core.database.mongodb import db_mongo
 from api_certify.core.security import decode_access_token
 from api_certify.service.auth_service import AuthService
 from api_certify.repositories.auth_repository import AuthRepository
+from api_certify.repositories.refresh_token_repository import RefreshTokenRepository
 from api_certify.service.certificate_service import CertificateService
 from api_certify.repositories.certificate_repository import CertificateRepository
 from api_certify.service.event_service import EventService
@@ -40,10 +41,16 @@ async def get_auth_repository() -> AuthRepository:
     return AuthRepository(database)
 
 
+async def get_refresh_token_repository() -> RefreshTokenRepository:
+    database = await db_mongo.get_database()
+    return RefreshTokenRepository(database)
+
+
 def get_auth_service(
     auth_repository: AuthRepository = Depends(get_auth_repository),
+    refresh_token_repository: RefreshTokenRepository = Depends(get_refresh_token_repository),
 ) -> AuthService:
-    return AuthService(auth_repository)
+    return AuthService(auth_repository, refresh_token_repository)
 
 
 # ---------- EVENT ----------

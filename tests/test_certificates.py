@@ -1,9 +1,9 @@
-import pytest
-from unittest.mock import AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock
 
-from api_certify.models.certificate_model import CreateCertificate, CertificateInDb
+import pytest
 
+from api_certify.models.certificate_model import CertificateInDb, CreateCertificate
 
 # -------------------------
 # Fixtures
@@ -45,7 +45,7 @@ def certificate_mock(user_id):
 
 
 # -------------------------
-# Tests
+# Create certificate
 # -------------------------
 
 
@@ -59,12 +59,10 @@ async def test_create_certificate_success(
     certificate_data,
     certificate_mock,
 ):
-
     auth_repository_mock.isExistAuth = AsyncMock(return_value=True)
     event_repository_mock.exists = AsyncMock(return_value=True)
 
     certificate_repository_mock.find_existing_certificate = AsyncMock(return_value=None)
-
     certificate_repository_mock.create = AsyncMock(return_value=certificate_mock)
 
     result = await certificate_service.create_participant_certificate(
@@ -88,7 +86,6 @@ async def test_create_certificate_existing(
     certificate_data,
     certificate_mock,
 ):
-
     auth_repository_mock.isExistAuth = AsyncMock(return_value=True)
     event_repository_mock.exists = AsyncMock(return_value=True)
 
@@ -111,7 +108,6 @@ async def test_create_certificate_user_not_exist(
     user_id,
     certificate_data,
 ):
-
     auth_repository_mock.isExistAuth = AsyncMock(return_value=False)
 
     with pytest.raises(Exception):
@@ -119,6 +115,11 @@ async def test_create_certificate_user_not_exist(
             user_id,
             certificate_data,
         )
+
+
+# -------------------------
+# Get many certificates
+# -------------------------
 
 
 @pytest.mark.asyncio
@@ -129,13 +130,20 @@ async def test_get_many_certificates_success(
     certificate_mock,
 ):
     certificate_repository_mock.get_many_certificates = AsyncMock(
-        return_value=[certificate_mock]
+        return_value={
+            "items": [certificate_mock],
+            "total": 1,
+            "page": 1,
+            "limit": 20,
+            "total_pages": 1,
+        }
     )
 
     result = await certificate_service.get_many_certificates(user_id)
 
-    assert len(result) == 1
-    assert result[0].user_id == user_id
+    assert result["total"] == 1
+    assert len(result["items"]) == 1
+    assert result["items"][0].user_id == user_id
 
 
 @pytest.mark.asyncio
@@ -145,12 +153,89 @@ async def test_get_many_certificates_empty(
     user_id,
 ):
     certificate_repository_mock.get_many_certificates = AsyncMock(
-        return_value=[]
+        return_value={
+            "items": [],
+            "total": 0,
+            "page": 1,
+            "limit": 20,
+            "total_pages": 0,
+        }
     )
 
     result = await certificate_service.get_many_certificates(user_id)
 
-    assert result == []
+    assert result["items"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_many_certificates_with_pagination(
+    certificate_service,
+    certificate_repository_mock,
+    user_id,
+    certificate_mock,
+):
+    paginated_response = {
+        "items": [certificate_mock],
+        "total": 1,
+        "page": 2,
+        "limit": 10,
+        "total_pages": 1,
+    }
+
+    certificate_repository_mock.get_many_certificates = AsyncMock(
+        return_value=paginated_response
+    )
+
+    result = await certificate_service.get_many_certificates(
+        user_id,
+        page=2,
+        limit=10,
+    )
+
+    certificate_repository_mock.get_many_certificates.assert_awaited_once_with(
+        user_id=user_id,
+        skip=10,
+        limit=10,
+        page=2,
+    )
+
+    assert result["page"] == 2
+    assert result["limit"] == 10
+    assert result["total"] == 1
+    assert len(result["items"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_many_certificates_empty_page(
+    certificate_service,
+    certificate_repository_mock,
+    user_id,
+):
+    paginated_response = {
+        "items": [],
+        "total": 5,
+        "page": 999,
+        "limit": 10,
+        "total_pages": 1,
+    }
+
+    certificate_repository_mock.get_many_certificates = AsyncMock(
+        return_value=paginated_response
+    )
+
+    result = await certificate_service.get_many_certificates(
+        user_id,
+        page=999,
+        limit=10,
+    )
+
+    assert result["items"] == []
+    assert result["page"] == 999
+
+
+# -------------------------
+# Get certificate by ID
+# -------------------------
 
 
 @pytest.mark.asyncio
@@ -182,6 +267,11 @@ async def test_get_certificate_by_id_not_found(
         await certificate_service.get_certificate_by_id("invalid-id")
 
 
+# -------------------------
+# Validate certificate
+# -------------------------
+
+
 @pytest.mark.asyncio
 async def test_validate_certificate_success(
     certificate_service,
@@ -209,9 +299,7 @@ async def test_validate_certificate_not_found(
     certificate_service,
     certificate_repository_mock,
 ):
-    certificate_repository_mock.find_by_access_key = AsyncMock(
-        return_value=None
-    )
+    certificate_repository_mock.find_by_access_key = AsyncMock(return_value=None)
 
     with pytest.raises(Exception, match="Certificado não encontrado"):
         await certificate_service.validate_certificate("invalid-key")

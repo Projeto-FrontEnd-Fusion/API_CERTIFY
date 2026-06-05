@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api_certify.dependencies import get_certificate_service, get_current_user
 from api_certify.models.certificate_model import CreateCertificate
@@ -65,15 +65,30 @@ async def request_certificate(
 )
 async def get_many_certificate(
     user_id: str,
+    page: int = Query(
+        1,
+        ge=1,
+        description="Número da página",
+    ),
+    limit: int = Query(
+        20,
+        ge=1,
+        le=100,
+        description="Quantidade máxima de registros por página",
+    ),
     service: CertificateService = Depends(get_certificate_service),
     current_user: dict = Depends(get_current_user),
 ):
-    certificates = await service.get_many_certificates(user_id)
+    certificates = await service.get_many_certificates(
+        user_id=user_id,
+        page=page,
+        limit=limit,
+    )
 
     return SucessResponse(
         success=True,
         message="Certificados obtidos com sucesso.",
-        data={"certificates": certificates},
+        data=certificates,
     )
 
 

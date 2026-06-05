@@ -1,5 +1,10 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
-from api_certify.models.auth_model import AuthUser, AuthUserReponse, AuthUserLogin, UpdateUserSchema
+from api_certify.models.auth_model import (
+    AuthUser,
+    AuthUserReponse,
+    AuthUserLogin,
+    UpdateUserSchema,
+)
 from datetime import datetime, timezone
 from api_certify.core.security import HashManager
 from bson import ObjectId
@@ -79,17 +84,39 @@ class AuthRepository:
 
         return AuthUserReponse(**auth_in_db)
 
-    async def update(self, user_id: str, update_data: UpdateUserSchema) -> AuthUserReponse:
+    async def get_user_by_id(self, user_id: str) -> AuthUserReponse:
+        """
+        Busca usuário pelo ID
+        """
+
+        auth_in_db = await self.collection.find_one({"_id": ObjectId(user_id)})
+
+        if not auth_in_db:
+            raise Exception("Usuário não encontrado")
+
+        # remove senha
+        del auth_in_db["password"]
+
+        # converte ObjectId para string
+        auth_in_db["_id"] = str(auth_in_db["_id"])
+
+        return AuthUserReponse(**auth_in_db)
+
+    async def update(
+        self, user_id: str, update_data: UpdateUserSchema
+    ) -> AuthUserReponse:
         fields = update_data.model_dump(exclude_none=True)
 
         if not fields:
             raise Exception("Nenhum campo para atualizar")
 
         if "email" in fields:
-            existing = await self.collection.find_one({
-                "email": fields["email"],
-                "_id": {"$ne": ObjectId(user_id)},
-            })
+            existing = await self.collection.find_one(
+                {
+                    "email": fields["email"],
+                    "_id": {"$ne": ObjectId(user_id)},
+                }
+            )
             if existing:
                 raise Exception("Email já cadastrado")
 

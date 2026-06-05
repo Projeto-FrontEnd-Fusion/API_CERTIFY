@@ -1,9 +1,9 @@
+from unittest.mock import AsyncMock
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
-from api_certify.main import app
 from api_certify.core.security import create_access_token
 from api_certify.dependencies import (
     get_auth_service,
@@ -11,9 +11,9 @@ from api_certify.dependencies import (
     get_current_user,
     get_event_service,
 )
+from api_certify.main import app
 from api_certify.service.certificate_service import CertificateService
 from api_certify.service.event_service import EventService
-
 
 # ==========================================
 # MOCK SERVICES
@@ -52,7 +52,9 @@ def auth_headers():
 
 
 @pytest.fixture
-def override_dependencies(auth_service_mock, certificate_service_mock, event_service_mock, fake_current_user):
+def override_dependencies(
+    auth_service_mock, certificate_service_mock, event_service_mock, fake_current_user
+):
     app.dependency_overrides[get_auth_service] = lambda: auth_service_mock
     app.dependency_overrides[get_certificate_service] = lambda: certificate_service_mock
     app.dependency_overrides[get_event_service] = lambda: event_service_mock
@@ -88,11 +90,13 @@ def get_certificate(body: dict):
     return body.get("data", {}).get("certificate")
 
 
-def assert_error_response(body: dict, message: str, status_code: int = 404):
-    assert body["success"] is False
+def assert_error_response(
+    body: dict,
+    message: str,
+    error: str = "HTTPException",
+):
+    assert body["error"] == error
     assert body["message"] == message
-    assert body["error_code"] == f"HTTP_{status_code}"
-    assert "details" in body
 
 
 # ==========================================
@@ -157,9 +161,19 @@ async def test_create_certificate(async_client, certificate_service_mock, auth_h
 
 
 @pytest.mark.asyncio
-async def test_get_many_certificates(async_client, certificate_service_mock, auth_headers):
+async def test_get_many_certificates(
+    async_client,
+    certificate_service_mock,
+    auth_headers,
+):
 
-    certificate_service_mock.get_many_certificates.return_value = [{"id": "cert_123"}]
+    certificate_service_mock.get_many_certificates.return_value = {
+        "items": [{"id": "cert_123"}],
+        "total": 1,
+        "page": 1,
+        "limit": 20,
+        "total_pages": 1,
+    }
 
     response = await async_client.get(
         "/api/v1/certificate/users/user123",
@@ -171,11 +185,18 @@ async def test_get_many_certificates(async_client, certificate_service_mock, aut
     body = response.json()
 
     assert body["success"] is True
-    assert isinstance(body["data"]["certificates"], list)
+
+    assert isinstance(body["data"]["items"], list)
+    assert body["data"]["total"] == 1
+    assert body["data"]["page"] == 1
+    assert body["data"]["limit"] == 20
+    assert body["data"]["total_pages"] == 1
 
 
 @pytest.mark.asyncio
-async def test_get_certificate_by_id(async_client, certificate_service_mock, auth_headers):
+async def test_get_certificate_by_id(
+    async_client, certificate_service_mock, auth_headers
+):
 
     certificate_service_mock.get_certificate_by_id.return_value = {
         "id": "cert_123",
@@ -373,7 +394,9 @@ async def test_update_user_not_found(async_client, auth_service_mock, auth_heade
 
 
 @pytest.mark.asyncio
-async def test_update_user_email_conflict(async_client, auth_service_mock, auth_headers):
+async def test_update_user_email_conflict(
+    async_client, auth_service_mock, auth_headers
+):
 
     auth_service_mock.update_user.side_effect = Exception("Email já cadastrado")
 

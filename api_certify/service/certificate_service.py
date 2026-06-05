@@ -1,13 +1,9 @@
 from fastapi import HTTPException, status
 
-from api_certify.repositories.certificate_repository import CertificateRepository
+from api_certify.models.certificate_model import CertificateInDb, CreateCertificate
 from api_certify.repositories.auth_repository import AuthRepository
+from api_certify.repositories.certificate_repository import CertificateRepository
 from api_certify.repositories.event_repository import EventRepository
-
-from api_certify.models.certificate_model import (
-    CertificateInDb,
-    CreateCertificate,
-)
 from api_certify.schemas.responses import CertificateValidationResponse
 
 
@@ -66,9 +62,20 @@ class CertificateService:
     # Listar certificados do usuário
     # =====================================
 
-    async def get_many_certificates(self, user_id: str) -> list[CertificateInDb]:
+    async def get_many_certificates(
+        self,
+        user_id: str,
+        page: int = 1,
+        limit: int = 20,
+    ):
+        skip = (page - 1) * limit
 
-        return await self.certificate_repository.get_many_certificates(user_id)
+        return await self.certificate_repository.get_many_certificates(
+            user_id=user_id,
+            skip=skip,
+            limit=limit,
+            page=page,
+        )
 
     # =====================================
     # Buscar certificado por ID
@@ -76,10 +83,11 @@ class CertificateService:
 
     async def get_certificate_by_id(self, certificate_id: str) -> CertificateInDb:
         response = await self.certificate_repository.get_certificate(certificate_id)
-        print(certificate_id)
         return response
 
-    async def validate_certificate(self, access_key: str) -> CertificateValidationResponse:
+    async def validate_certificate(
+        self, access_key: str
+    ) -> CertificateValidationResponse:
         doc = await self.certificate_repository.find_by_access_key(access_key)
         if not doc:
             raise Exception("Certificado não encontrado ou código inválido.")
