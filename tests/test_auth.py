@@ -141,3 +141,93 @@ async def test_get_me_success(auth_service, auth_repository_mock):
     assert result.id == "1"
     assert result.email == "teste@example.com"
     assert result.fullname == "Teste User"
+
+
+@pytest.mark.asyncio
+async def test_login_returns_refresh_token(auth_service, auth_repository_mock):
+
+    payload = AuthUserLogin(
+        email="teste@example.com",
+        password="SenhaSegura123!",
+    )
+
+    auth_repository_mock.login = AsyncMock(
+        return_value=AuthUserReponse(
+            _id="1",
+            fullname="Teste User",
+            email="teste@example.com",
+            role=Role.USER,
+            status="pending",
+        )
+    )
+
+    result = await auth_service.login_auth(payload)
+
+    assert "refresh_token" in result
+    assert "access_token" in result
+    assert result["token_type"] == "bearer"
+
+
+@pytest.mark.asyncio
+async def test_refresh_access_token_success(
+    auth_service, refresh_token_repository_mock
+):
+    from api_certify.core.security import create_refresh_token
+
+    token = create_refresh_token({"sub": "1", "email": "teste@example.com"})
+
+    refresh_token_repository_mock.find_valid_token = AsyncMock(
+        return_value={"token": token, "user_id": "1", "revoked": False}
+    )
+
+    result = await auth_service.refresh_access_token(token)
+
+    assert "access_token" in result
+    assert "refresh_token" in result
+    assert result["token_type"] == "bearer"
+
+
+@pytest.mark.asyncio
+async def test_refresh_access_token_invalid(auth_service):
+
+    with pytest.raises(HTTPException) as exc_info:
+        await auth_service.refresh_access_token("token-invalido")
+
+    assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_access_token_revoked(
+    auth_service, refresh_token_repository_mock
+):
+    from api_certify.core.security import create_refresh_token
+
+    token = create_refresh_token({"sub": "1", "email": "teste@example.com"})
+
+    refresh_token_repository_mock.find_valid_token = AsyncMock(return_value=None)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await auth_service.refresh_access_token(token)
+
+    assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_logout_success(auth_service, refresh_token_repository_mock):
+
+    refresh_token_repository_mock.revoke = AsyncMock(return_value=True)
+
+    result = await auth_service.logout("some-refresh-token")
+
+    assert result["message"] == "Sessão encerrada com sucesso"
+
+
+@pytest.mark.asyncio
+async def test_logout_already_revoked(auth_service, refresh_token_repository_mock):
+
+    refresh_token_repository_mock.revoke = AsyncMock(return_value=False)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await auth_service.logout("already-revoked-token")
+
+    assert exc_info.value.status_code == 400

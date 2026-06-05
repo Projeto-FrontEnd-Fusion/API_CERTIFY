@@ -11,7 +11,7 @@ async def http_exception_handler(
     exc: HTTPException,
 ) -> JSONResponse:
     error_name = getattr(exc, "error", exc.__class__.__name__)
-    message = getattr(exc, "message", exc.detail)
+    message = getattr(exc, "message", getattr(exc, "detail", str(exc)))
 
     logger.error(
         "%s %s - %s: %s",
@@ -21,11 +21,13 @@ async def http_exception_handler(
         message,
     )
 
+    status_code = getattr(exc, "status_code", 422)
+
     return JSONResponse(
-        status_code=exc.status_code,
+        status_code=status_code,
         content={
             "error": error_name,
-            "message": message,
+            "message": message if isinstance(message, str) else "Erro de validação",
         },
     )
 
