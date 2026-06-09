@@ -1,12 +1,13 @@
-from api_certify.repositories.auth_repository import AuthRepository
+from fastapi import HTTPException, status
+
+from api_certify.core.security import create_access_token
 from api_certify.models.auth_model import (
     AuthUser,
     AuthUserLogin,
     AuthUserReponse,
     UpdateUserSchema,
 )
-from api_certify.core.security import create_access_token
-from fastapi import HTTPException, status
+from api_certify.repositories.auth_repository import AuthRepository
 
 
 class AuthService:
@@ -31,6 +32,7 @@ class AuthService:
             {
                 "sub": str(user.id),
                 "email": user.email,
+                "role": user.role,
             }
         )
 

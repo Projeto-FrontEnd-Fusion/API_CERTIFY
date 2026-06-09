@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from api_certify.dependencies import get_certificate_service, get_current_user
+from api_certify.dependencies import (
+    get_certificate_service,
+    get_current_user,
+    require_role,
+)
 from api_certify.models.certificate_model import CreateCertificate
 from api_certify.schemas.responses import SucessResponse
 from api_certify.service.certificate_service import CertificateService
@@ -44,7 +48,7 @@ async def request_certificate(
     user_id: str,
     payload: CreateCertificate,
     service: CertificateService = Depends(get_certificate_service),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role("empresa")),
 ):
     certificate = await service.create_participant_certificate(user_id, payload)
 
@@ -79,6 +83,15 @@ async def get_many_certificate(
     service: CertificateService = Depends(get_certificate_service),
     current_user: dict = Depends(get_current_user),
 ):
+    role = current_user.get("role")
+    token_user_id = current_user.get("sub")
+
+    if role == "user" and token_user_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Acesso negado. Permissão insuficiente para esta ação.",
+        )
+
     certificates = await service.get_many_certificates(
         user_id=user_id,
         page=page,

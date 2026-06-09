@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
@@ -10,12 +11,12 @@ from api_certify.dependencies import (
     get_certificate_repository,
     get_certificate_service,
     get_current_user,
+    require_role,
 )
-
-from api_certify.service.auth_service import AuthService
-from api_certify.service.certificate_service import CertificateService
 from api_certify.repositories.auth_repository import AuthRepository
 from api_certify.repositories.certificate_repository import CertificateRepository
+from api_certify.service.auth_service import AuthService
+from api_certify.service.certificate_service import CertificateService
 
 
 @pytest.fixture
@@ -70,7 +71,13 @@ def test_get_certificate_service():
 
 @pytest.mark.asyncio
 async def test_get_current_user_valid_token():
-    token = create_access_token({"sub": "123", "email": "user@test.com"})
+    token = create_access_token(
+        {
+            "sub": "123",
+            "email": "user@test.com",
+            "role": "user",
+        }
+    )
     credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
     user = await get_current_user(credentials)
@@ -87,3 +94,55 @@ async def test_get_current_user_invalid_token():
         await get_current_user(credentials)
 
     assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_require_role_allows_empresa():
+
+    checker = require_role("empresa")
+
+    current_user = {
+        "sub": "123",
+        "email": "empresa@test.com",
+        "role": "empresa",
+    }
+
+    result = await checker(current_user=current_user)
+
+    assert result == current_user
+
+
+@pytest.mark.asyncio
+async def test_require_role_allows_admin():
+
+    checker = require_role("empresa")
+
+    current_user = {
+        "sub": "123",
+        "email": "admin@test.com",
+        "role": "admin",
+    }
+
+    result = await checker(current_user=current_user)
+
+    assert result == current_user
+
+
+@pytest.mark.asyncio
+async def test_require_role_denies_user():
+
+    checker = require_role("empresa")
+
+    current_user = {
+        "sub": "123",
+        "email": "user@test.com",
+        "role": "user",
+    }
+
+    with pytest.raises(HTTPException) as exc_info:
+        await checker(current_user=current_user)
+
+    assert exc_info.value.status_code == 403
+    assert (
+        exc_info.value.detail == "Acesso negado. Permissão insuficiente para esta ação."
+    )

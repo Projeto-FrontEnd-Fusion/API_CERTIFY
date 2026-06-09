@@ -30,12 +30,14 @@ def certificate_service_mock():
 
 @pytest.fixture
 def fake_current_user():
-    return {"sub": "user123", "email": "test@email.com"}
+    return {"sub": "user123", "email": "test@email.com", "role": "user"}
 
 
 @pytest.fixture
 def auth_headers():
-    token = create_access_token({"sub": "user123", "email": "test@email.com"})
+    token = create_access_token(
+        {"sub": "user123", "email": "test@email.com", "role": "user"}
+    )
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -123,7 +125,9 @@ async def test_login_user(async_client, auth_service_mock):
 
 
 @pytest.mark.asyncio
-async def test_create_certificate(async_client, certificate_service_mock, auth_headers):
+async def test_create_certificate(
+    company_client, certificate_service_mock, company_headers
+):
 
     certificate_service_mock.create_participant_certificate.return_value = {
         "id": "cert_123",
@@ -132,7 +136,7 @@ async def test_create_certificate(async_client, certificate_service_mock, auth_h
         "status": "available",
     }
 
-    response = await async_client.post(
+    response = await company_client.post(
         "/api/v1/certificate/user123",
         json={
             "fullname": "João Silva Santos",
@@ -141,7 +145,7 @@ async def test_create_certificate(async_client, certificate_service_mock, auth_h
             "status": "pending",
             "email": "joao@email.com",
         },
-        headers=auth_headers,
+        headers=company_headers,
     )
 
     assert response.status_code == 201
@@ -409,3 +413,53 @@ async def test_update_user_without_token(async_client_no_auth):
     )
 
     assert response.status_code == 403
+
+
+@pytest.fixture
+def fake_company_user():
+    return {
+        "sub": "company123",
+        "email": "empresa@test.com",
+        "role": "empresa",
+    }
+
+
+@pytest.fixture
+def company_headers():
+    token = create_access_token(
+        {
+            "sub": "company123",
+            "email": "empresa@test.com",
+            "role": "empresa",
+        }
+    )
+
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def override_company_dependencies(
+    auth_service_mock,
+    certificate_service_mock,
+    fake_company_user,
+):
+    app.dependency_overrides[get_auth_service] = lambda: auth_service_mock
+    app.dependency_overrides[get_certificate_service] = lambda: certificate_service_mock
+    app.dependency_overrides[get_current_user] = lambda: fake_company_user
+
+    yield
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def company_client(
+    override_company_dependencies,
+):
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        yield client

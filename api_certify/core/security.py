@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta, timezone
-from jose import jwt, JWTError
-from passlib.context import CryptContext
 import os
+from datetime import datetime, timedelta, timezone
+
 from dotenv import load_dotenv
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
 load_dotenv()
 
@@ -28,7 +29,7 @@ class HashManager:
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
-    required_claims = ["sub", "email"]
+    required_claims = ["sub", "email", "role"]
 
     for claim in required_claims:
         if claim not in data:
@@ -39,7 +40,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+        )
 
     to_encode.update({"exp": expire})
 
