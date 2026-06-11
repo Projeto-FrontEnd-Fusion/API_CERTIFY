@@ -24,11 +24,14 @@ EXAMPLE_PASSWORD = 'SenhaSegura123!'
 EXAMPLE_USER_ID = '507f1f77bcf86cd799439011'
 EXAMPLE_DATETIME = '2024-01-15T10:30:00.000Z'
 EXAMPLE_STATUS = 'available'
+DESC_PHONE = 'Número de celular do usuário'
+EXAMPLE_PHONE = '(85) 99124-8874'
 
 
 class Role(str, Enum):
     ADMIN = 'admin'
     USER = 'user'
+    EMPRESA = 'empresa'
 
 
 class AuthUser(BaseModel):
@@ -55,6 +58,32 @@ class AuthUser(BaseModel):
         ..., 
         description=DESC_ROLE,
         example=Role.USER
+    )
+    cpf: Optional[str] = Field(
+        None,
+        description='CPF do usuário',
+        example='12345678900'
+    )
+    cnpj: Optional[str] = Field(
+        None,
+        description='CNPJ da empresa',
+        example='12345678000190'
+    )
+    organization_name: Optional[str] = Field(
+        None,
+        alias='organizationName',
+        description='Nome da organização/empresa',
+        example='Comunidade Frontend Fusion'
+    )
+    occupation: Optional[str] = Field(
+        None,
+        description='Profissão/cargo do usuário',
+        example='Desenvolvedor'
+    )
+    phone: Optional[str] = Field(
+        None,
+        description=DESC_PHONE,
+        example=EXAMPLE_PHONE
     )
     status: Optional[str] = Field(
         None,
@@ -94,10 +123,6 @@ class AuthUserInDb(AuthUser):
         example=EXAMPLE_USER_ID
     )
     model_config = ConfigDict(use_enum_values=True, populate_by_name=True)
-
-
-DESC_PHONE = 'Número de celular do usuário'
-EXAMPLE_PHONE = '(85) 99124-8874'
 
 
 class UpdateUserSchema(BaseModel):
