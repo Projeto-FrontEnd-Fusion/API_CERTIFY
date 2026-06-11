@@ -9,9 +9,11 @@ from api_certify.dependencies import (
     get_auth_service,
     get_certificate_service,
     get_current_user,
+    get_event_service,
 )
 from api_certify.main import app
 from api_certify.service.certificate_service import CertificateService
+from api_certify.service.event_service import EventService
 
 # ==========================================
 # MOCK SERVICES
@@ -26,6 +28,11 @@ def auth_service_mock():
 @pytest.fixture
 def certificate_service_mock():
     return AsyncMock(spec=CertificateService)
+
+
+@pytest.fixture
+def event_service_mock():
+    return AsyncMock(spec=EventService)
 
 
 @pytest.fixture
@@ -48,10 +55,11 @@ def auth_headers():
 
 @pytest.fixture
 def override_dependencies(
-    auth_service_mock, certificate_service_mock, fake_current_user
+    auth_service_mock, certificate_service_mock, event_service_mock, fake_current_user
 ):
     app.dependency_overrides[get_auth_service] = lambda: auth_service_mock
     app.dependency_overrides[get_certificate_service] = lambda: certificate_service_mock
+    app.dependency_overrides[get_event_service] = lambda: event_service_mock
     app.dependency_overrides[get_current_user] = lambda: fake_current_user
 
     yield
@@ -218,9 +226,10 @@ async def test_get_certificate_by_id(
 
 
 @pytest_asyncio.fixture
-async def async_client_no_auth(auth_service_mock, certificate_service_mock):
+async def async_client_no_auth(auth_service_mock, certificate_service_mock, event_service_mock):
     app.dependency_overrides[get_auth_service] = lambda: auth_service_mock
     app.dependency_overrides[get_certificate_service] = lambda: certificate_service_mock
+    app.dependency_overrides[get_event_service] = lambda: event_service_mock
 
     transport = ASGITransport(app=app)
 
@@ -463,3 +472,144 @@ async def company_client(
         base_url="http://test",
     ) as client:
         yield client
+# ==========================================
+# TESTS - EVENTS
+# ==========================================
+
+
+@pytest.mark.asyncio
+async def test_create_event_success(async_client, event_service_mock, auth_headers):
+
+    event_service_mock.create_event.return_value = {
+        "_id": "evt_123",
+        "name": "Imersão Dev Insights",
+        "institution": "Comunidade Frontend Fusion",
+        "workload": 9,
+        "description": "Evento de tecnologia",
+        "start_date": "2025-11-05T00:00:00",
+        "end_date": "2025-11-07T00:00:00",
+    }
+
+    response = await async_client.post(
+        "/api/v1/events",
+        json={
+            "name": "Imersão Dev Insights",
+            "institution": "Comunidade Frontend Fusion",
+            "workload": 9,
+            "description": "Evento de tecnologia",
+            "start_date": "2025-11-05T00:00:00",
+            "end_date": "2025-11-07T00:00:00",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["data"]["event"]["name"] == "Imersão Dev Insights"
+
+
+@pytest.mark.asyncio
+async def test_create_event_invalid_workload(async_client, auth_headers):
+
+    response = await async_client.post(
+        "/api/v1/events",
+        json={
+            "name": "Evento Teste",
+            "institution": "Instituição",
+            "workload": 0,
+            "description": "Descrição",
+            "start_date": "2025-11-05T00:00:00",
+            "end_date": "2025-11-07T00:00:00",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_event_end_before_start(async_client, auth_headers):
+
+    response = await async_client.post(
+        "/api/v1/events",
+        json={
+            "name": "Evento Teste",
+            "institution": "Instituição",
+            "workload": 5,
+            "description": "Descrição",
+            "start_date": "2025-11-07T00:00:00",
+            "end_date": "2025-11-05T00:00:00",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_event_name_too_short(async_client, auth_headers):
+
+    response = await async_client.post(
+        "/api/v1/events",
+        json={
+            "name": "AB",
+            "institution": "Instituição",
+            "workload": 5,
+            "description": "Descrição",
+            "start_date": "2025-11-05T00:00:00",
+            "end_date": "2025-11-07T00:00:00",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_event_without_token(async_client_no_auth):
+
+    response = await async_client_no_auth.post(
+        "/api/v1/events",
+        json={
+            "name": "Evento Teste",
+            "institution": "Instituição",
+            "workload": 5,
+            "description": "Descrição",
+            "start_date": "2025-11-05T00:00:00",
+            "end_date": "2025-11-07T00:00:00",
+        },
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_event_success(async_client, event_service_mock):
+
+    event_service_mock.get_event_by_id.return_value = {
+        "_id": "evt_123",
+        "name": "Imersão Dev Insights",
+        "institution": "Comunidade Frontend Fusion",
+        "workload": 9,
+    }
+
+    response = await async_client.get("/api/v1/events/evt_123")
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_event_not_found(async_client, event_service_mock):
+
+    event_service_mock.get_event_by_id.return_value = None
+
+    response = await async_client.get("/api/v1/events/invalid_id")
+
+    assert response.status_code == 404

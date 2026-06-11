@@ -10,8 +10,11 @@ from api_certify.models.certificate_model import CertificateInDb, CreateCertific
 
 ACCESS_KEY = os.getenv("ACCESS_KEY")
 
-if not ACCESS_KEY:
-    raise ValueError("ACCESS_KEY não configurada no .env")
+if not ACCESS_KEY or ACCESS_KEY.strip() == "":
+    raise RuntimeError(
+        "Erro de Configuração: ACCESS_KEY não encontrada no ambiente. "
+        "O servidor não pode ser iniciado."
+    )
 
 
 def add_years(data: datetime, anos: int) -> datetime:

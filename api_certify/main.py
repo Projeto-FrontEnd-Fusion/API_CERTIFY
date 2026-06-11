@@ -1,8 +1,15 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pymongo.errors import (
+    ConnectionFailure,
+    ServerSelectionTimeoutError,
+    AutoReconnect,
+    NetworkTimeout,
+)
 
 from api_certify.core.database.mongodb import mongodb_connect, mongodb_disconnect
 from api_certify.exceptions.handlers import (
@@ -11,12 +18,17 @@ from api_certify.exceptions.handlers import (
 )
 from api_certify.routes.v1.auth_routes import auth_routes
 from api_certify.routes.v1.certificate_routes import certificate_routes
+from api_certify.routes.v1.event_routes import event_routes
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await mongodb_connect()
-    print("Conectado com sucesso ao MongoDB.")
+    try:
+        await mongodb_connect()
+        print('✅ Conectado ao MongoDB com sucesso')
+    except RuntimeError as e:
+        print(f'❌ {e}')
+        raise SystemExit(1)
     yield
     await mongodb_disconnect()
     print("Conexão com MongoDB encerrada.")
@@ -32,10 +44,42 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
 # Exception Handlers
 app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, http_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
+
+
+# ---------- MIDDLEWARE: Erro de conexão ----------
+
+
+@app.middleware("http")
+async def database_error_middleware(request: Request, call_next):
+    try:
+        response = await call_next(request)
+        return response
+    except (ConnectionFailure, ServerSelectionTimeoutError, AutoReconnect, NetworkTimeout):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "success": False,
+                "message": "Serviço temporariamente indisponível.",
+                "error_code": "SERVICE_UNAVAILABLE",
+            },
+        )
+    except RuntimeError as e:
+        if "conecta" in str(e).lower():
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "success": False,
+                    "message": "Serviço temporariamente indisponível.",
+                    "error_code": "SERVICE_UNAVAILABLE",
+                },
+            )
+        raise
+
 
 # CORS
 app.add_middleware(
@@ -57,7 +101,7 @@ app.add_middleware(
 # Routes
 @app.get("/")
 async def root():
-    return {"message": "Fala, meu Frontend Sênior! Primeiramente, Hello World!"}
+    return {"message": "Hello World"}
 
 
 @app.get("/health")
@@ -69,3 +113,4 @@ API_PREFIX = "/api/v1"
 
 app.include_router(auth_routes, prefix=API_PREFIX)
 app.include_router(certificate_routes, prefix=API_PREFIX)
+app.include_router(event_routes, prefix=API_PREFIX)
