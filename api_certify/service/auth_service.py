@@ -1,3 +1,6 @@
+from fastapi import HTTPException, status
+
+from api_certify.core.security import create_access_token
 from datetime import datetime, timedelta, timezone
 
 from api_certify.repositories.auth_repository import AuthRepository
@@ -8,6 +11,7 @@ from api_certify.models.auth_model import (
     AuthUserReponse,
     UpdateUserSchema,
 )
+from api_certify.repositories.auth_repository import AuthRepository
 from api_certify.core.security import (
     create_access_token,
     create_refresh_token,
@@ -40,6 +44,12 @@ class AuthService:
                 detail="E-mail ou senha inválidos",
             )
 
+        access_token = create_access_token(
+            {
+                "sub": str(user.id),
+                "email": user.email,
+                "role": user.role,
+            }
         token_data = {"sub": str(user.id), "email": user.email}
 
         access_token = create_access_token(token_data)
