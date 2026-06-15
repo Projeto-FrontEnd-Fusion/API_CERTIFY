@@ -226,7 +226,9 @@ async def test_get_certificate_by_id(
 
 
 @pytest_asyncio.fixture
-async def async_client_no_auth(auth_service_mock, certificate_service_mock, event_service_mock):
+async def async_client_no_auth(
+    auth_service_mock, certificate_service_mock, event_service_mock
+):
     app.dependency_overrides[get_auth_service] = lambda: auth_service_mock
     app.dependency_overrides[get_certificate_service] = lambda: certificate_service_mock
     app.dependency_overrides[get_event_service] = lambda: event_service_mock
@@ -472,6 +474,8 @@ async def company_client(
         base_url="http://test",
     ) as client:
         yield client
+
+
 # ==========================================
 # TESTS - EVENTS
 # ==========================================
@@ -613,3 +617,262 @@ async def test_get_event_not_found(async_client, event_service_mock):
     response = await async_client.get("/api/v1/events/invalid_id")
 
     assert response.status_code == 404
+
+
+# ==========================================
+# TESTS - AUTH ENDPOINTS
+# ==========================================
+
+
+@pytest.mark.asyncio
+async def test_signup_success(async_client, auth_service_mock):
+    from api_certify.models.auth_model import Role
+
+    auth_service_mock.create_auth_user.return_value = {
+        "_id": "user123",
+        "fullname": "João Silva",
+        "email": "joao@example.com",
+        "role": Role.USER,
+        "status": "pending",
+    }
+
+    response = await async_client.post(
+        "/api/v1/auth/signup",
+        json={
+            "fullname": "João Silva",
+            "email": "joao@example.com",
+            "password": "SenhaSegura123!",
+            "role": "user",
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["success"] is True
+    assert body["message"] == "Usuário cadastrado com sucesso"
+
+
+@pytest.mark.asyncio
+async def test_signup_error(async_client, auth_service_mock):
+    auth_service_mock.create_auth_user.side_effect = Exception("Email já cadastrado")
+
+    response = await async_client.post(
+        "/api/v1/auth/signup",
+        json={
+            "fullname": "João Silva",
+            "email": "joao@example.com",
+            "password": "SenhaSegura123!",
+            "role": "user",
+        },
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_login_error_invalid_credentials(async_client, auth_service_mock):
+    auth_service_mock.login_auth.side_effect = Exception("Credenciais inválidas")
+
+    response = await async_client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "test@email.com",
+            "password": "WrongPassword",
+        },
+    )
+
+    assert response.status_code == 401
+    body = response.json()
+    assert body["message"] == "Email ou senha incorretos"
+
+
+@pytest.mark.asyncio
+async def test_login_error_email_in_use(async_client, auth_service_mock):
+    auth_service_mock.login_auth.side_effect = Exception("Email já cadastrado")
+
+    response = await async_client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "test@email.com",
+            "password": "SenhaSegura123!",
+        },
+    )
+
+    assert response.status_code == 409
+    body = response.json()
+    assert "já está em uso" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_login_error_generic(async_client, auth_service_mock):
+    auth_service_mock.login_auth.side_effect = Exception("Erro genérico no login")
+
+    response = await async_client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "test@email.com",
+            "password": "SenhaSegura123!",
+        },
+    )
+
+    assert response.status_code == 400
+    body = response.json()
+    assert "Erro no login" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_get_me_success(async_client, auth_service_mock, auth_headers):
+    from api_certify.models.auth_model import Role
+
+    auth_service_mock.get_me.return_value = {
+        "_id": "user123",
+        "fullname": "Test User",
+        "email": "test@email.com",
+        "role": Role.USER,
+        "status": "available",
+    }
+
+    response = await async_client.get(
+        "/api/v1/auth/me",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["message"] == "Usuário autenticado"
+
+
+@pytest.mark.asyncio
+async def test_get_me_error(async_client, auth_service_mock, auth_headers):
+    auth_service_mock.get_me.side_effect = Exception("Usuário não encontrado")
+
+    response = await async_client.get(
+        "/api/v1/auth/me",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_update_user_success(async_client, auth_service_mock, auth_headers):
+    from api_certify.models.auth_model import Role
+
+    auth_service_mock.update_user.return_value = {
+        "_id": "user123",
+        "fullname": "Updated Name",
+        "email": "test@email.com",
+        "role": Role.USER,
+        "status": "available",
+    }
+
+    response = await async_client.put(
+        "/api/v1/auth/user123",
+        json={"fullname": "Updated Name"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["message"] == "Dados atualizados com sucesso"
+
+
+@pytest.mark.asyncio
+async def test_update_user_not_found(async_client, auth_service_mock, auth_headers):
+    auth_service_mock.update_user.side_effect = Exception("Usuário não encontrado")
+
+    response = await async_client.put(
+        "/api/v1/auth/invalid_id",
+        json={"fullname": "Updated Name"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_user_email_exists(async_client, auth_service_mock, auth_headers):
+    auth_service_mock.update_user.side_effect = Exception("Email já cadastrado")
+
+    response = await async_client.put(
+        "/api/v1/auth/user123",
+        json={"email": "existing@email.com"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_update_user_error_generic(async_client, auth_service_mock, auth_headers):
+    auth_service_mock.update_user.side_effect = Exception("Erro genérico")
+
+    response = await async_client.put(
+        "/api/v1/auth/user123",
+        json={"fullname": "Updated Name"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_success(async_client, auth_service_mock):
+    auth_service_mock.refresh_access_token.return_value = {
+        "access_token": "new-token",
+        "refresh_token": "new-refresh-token",
+        "token_type": "bearer",
+    }
+
+    response = await async_client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": "valid-refresh-token"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["message"] == "Token renovado com sucesso"
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_missing(async_client):
+    response = await async_client.post(
+        "/api/v1/auth/refresh",
+        json={},
+    )
+
+    assert response.status_code == 400
+    body = response.json()
+    assert "refresh_token é obrigatório" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_logout_success(async_client, auth_service_mock, auth_headers):
+    auth_service_mock.logout.return_value = {"message": "Logout realizado com sucesso"}
+
+    response = await async_client.post(
+        "/api/v1/auth/logout",
+        json={"refresh_token": "valid-refresh-token"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["message"] == "Logout realizado com sucesso"
+
+
+@pytest.mark.asyncio
+async def test_logout_missing_token(async_client, auth_headers):
+    response = await async_client.post(
+        "/api/v1/auth/logout",
+        json={},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 400
+    body = response.json()
+    assert "refresh_token é obrigatório" in body["message"]

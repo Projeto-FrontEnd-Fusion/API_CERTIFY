@@ -1,10 +1,13 @@
-from fastapi import HTTPException, status
-
-from api_certify.core.security import create_access_token
 from datetime import datetime, timedelta, timezone
 
-from api_certify.repositories.auth_repository import AuthRepository
-from api_certify.repositories.refresh_token_repository import RefreshTokenRepository
+from fastapi import HTTPException, status
+
+from api_certify.core.security import (
+    REFRESH_TOKEN_EXPIRE_DAYS,
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+)
 from api_certify.models.auth_model import (
     AuthUser,
     AuthUserLogin,
@@ -12,13 +15,7 @@ from api_certify.models.auth_model import (
     UpdateUserSchema,
 )
 from api_certify.repositories.auth_repository import AuthRepository
-from api_certify.core.security import (
-    create_access_token,
-    create_refresh_token,
-    decode_refresh_token,
-    REFRESH_TOKEN_EXPIRE_DAYS,
-)
-from fastapi import HTTPException, status
+from api_certify.repositories.refresh_token_repository import RefreshTokenRepository
 
 
 class AuthService:
@@ -44,19 +41,15 @@ class AuthService:
                 detail="E-mail ou senha inválidos",
             )
 
-        access_token = create_access_token(
-            {
-                "sub": str(user.id),
-                "email": user.email,
-                "role": user.role,
-            }
-        token_data = {"sub": str(user.id), "email": user.email}
+        token_data = {"sub": str(user.id), "email": user.email, "role": user.role}
 
         access_token = create_access_token(token_data)
-        refresh_token = create_refresh_token(token_data)
+        refresh_token = create_refresh_token({"sub": str(user.id), "email": user.email})
 
         # Persistir refresh token no banco
-        expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            days=REFRESH_TOKEN_EXPIRE_DAYS
+        )
         await self.refresh_token_repository.create(
             user_id=str(user.id),
             token=refresh_token,
@@ -81,7 +74,9 @@ class AuthService:
             )
 
         # Verificar se existe no banco e não foi revogado
-        stored_token = await self.refresh_token_repository.find_valid_token(refresh_token)
+        stored_token = await self.refresh_token_repository.find_valid_token(
+            refresh_token
+        )
 
         if not stored_token:
             raise HTTPException(
@@ -92,14 +87,31 @@ class AuthService:
         # Revogar o refresh token usado (rotação)
         await self.refresh_token_repository.revoke(refresh_token)
 
+        # Buscar usuário para obter role atual
+        try:
+            user = await self.auth_repository.get_user_by_id(payload["sub"])
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Usuário não encontrado",
+            )
+
         # Gerar novos tokens
-        token_data = {"sub": payload["sub"], "email": payload["email"]}
+        token_data = {
+            "sub": payload["sub"],
+            "email": payload["email"],
+            "role": user.role,
+        }
 
         new_access_token = create_access_token(token_data)
-        new_refresh_token = create_refresh_token(token_data)
+        new_refresh_token = create_refresh_token(
+            {"sub": payload["sub"], "email": payload["email"]}
+        )
 
         # Persistir novo refresh token
-        expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            days=REFRESH_TOKEN_EXPIRE_DAYS
+        )
         await self.refresh_token_repository.create(
             user_id=payload["sub"],
             token=new_refresh_token,
