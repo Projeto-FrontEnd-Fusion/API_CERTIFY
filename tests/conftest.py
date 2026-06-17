@@ -1,15 +1,13 @@
-import pytest_asyncio
 from unittest.mock import AsyncMock
-from httpx import AsyncClient, ASGITransport
 
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+
+from api_certify.dependencies import get_auth_repository, get_certificate_repository
 from api_certify.main import app
+from api_certify.models.auth_model import AuthUserReponse, Role
 from api_certify.service.auth_service import AuthService
 from api_certify.service.certificate_service import CertificateService
-from api_certify.dependencies import (
-    get_auth_repository,
-    get_certificate_repository,
-)
-
 
 # -----------------------------
 # Repository Mocks
@@ -23,6 +21,13 @@ async def auth_repository_mock():
     repo.isExistAuth.return_value = False
     repo.create_auth_user.return_value = None
     repo.login_auth.return_value = {"access_token": "fake-token"}
+    repo.get_user_by_id.return_value = AuthUserReponse(
+        _id="1",
+        fullname="Teste User",
+        email="teste@example.com",
+        role=Role.USER,
+        status="available",
+    )
 
     return repo
 
@@ -73,8 +78,12 @@ async def auth_service(auth_repository_mock, refresh_token_repository_mock):
 
 
 @pytest_asyncio.fixture
-async def certificate_service(certificate_repository_mock, auth_repository_mock, event_repository_mock):
-    return CertificateService(certificate_repository_mock, auth_repository_mock, event_repository_mock)
+async def certificate_service(
+    certificate_repository_mock, auth_repository_mock, event_repository_mock
+):
+    return CertificateService(
+        certificate_repository_mock, auth_repository_mock, event_repository_mock
+    )
 
 
 # -----------------------------
