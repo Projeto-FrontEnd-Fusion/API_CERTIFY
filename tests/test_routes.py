@@ -127,6 +127,89 @@ async def test_login_user(async_client, auth_service_mock):
     assert body["data"]["access_token"] == "fake-token"
 
 
+@pytest.mark.asyncio
+async def test_signup_company_success(async_client, auth_service_mock):
+
+    auth_service_mock.create_company_user.return_value = {
+        "_id": "comp_123",
+        "razao_social": "Empresa Teste Ltda",
+        "cnpj": "12345678000195",
+        "email": "contato@empresa.com",
+        "phone": "(11) 99999-8888",
+        "role": "empresa",
+    }
+
+    response = await async_client.post(
+        "/api/v1/auth/signup/company",
+        json={
+            "razao_social": "Empresa Teste Ltda",
+            "cnpj": "12.345.678/0001-95",
+            "email": "contato@empresa.com",
+            "password": "SenhaSegura123!",
+            "phone": "(11) 99999-8888",
+        },
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["data"]["auth"]["email"] == "contato@empresa.com"
+
+
+@pytest.mark.asyncio
+async def test_signup_company_cnpj_invalid(async_client, auth_service_mock):
+
+    auth_service_mock.create_company_user.side_effect = Exception("CNPJ inválido")
+
+    response = await async_client.post(
+        "/api/v1/auth/signup/company",
+        json={
+            "razao_social": "Empresa Teste Ltda",
+            "cnpj": "11.111.111/1111-11",
+            "email": "contato@empresa.com",
+            "password": "SenhaSegura123!",
+        },
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_signup_company_duplicates(async_client, auth_service_mock):
+
+    # CNPJ duplicate
+    auth_service_mock.create_company_user.side_effect = Exception("CNPJ já cadastrado")
+
+    response = await async_client.post(
+        "/api/v1/auth/signup/company",
+        json={
+            "razao_social": "Empresa Teste Ltda",
+            "cnpj": "12.345.678/0001-95",
+            "email": "contato@empresa.com",
+            "password": "SenhaSegura123!",
+        },
+    )
+
+    assert response.status_code == 409
+
+    # Email duplicate
+    auth_service_mock.create_company_user.side_effect = Exception("Email já cadastrado")
+
+    response = await async_client.post(
+        "/api/v1/auth/signup/company",
+        json={
+            "razao_social": "Empresa Teste Ltda",
+            "cnpj": "98.765.432/0001-10",
+            "email": "contato@empresa.com",
+            "password": "SenhaSegura123!",
+        },
+    )
+
+    assert response.status_code == 409
+
+
 # ==========================================
 # TESTS - CERTIFICATE (PROTEGIDAS)
 # ==========================================

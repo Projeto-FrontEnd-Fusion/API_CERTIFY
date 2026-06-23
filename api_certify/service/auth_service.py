@@ -12,6 +12,8 @@ from api_certify.models.auth_model import (
     AuthUser,
     AuthUserLogin,
     AuthUserReponse,
+    CompanyResponse,
+    CompanyUser,
     UpdateUserSchema,
 )
 from api_certify.repositories.auth_repository import AuthRepository
@@ -31,6 +33,10 @@ class AuthService:
     async def create_auth_user(self, auth_data: AuthUser) -> AuthUserReponse:
         auth = await self.auth_repository.create(auth_data)
         return auth
+
+    async def create_company_user(self, company_data: CompanyUser) -> CompanyResponse:
+        company = await self.auth_repository.create_company(company_data)
+        return company
 
     async def login_auth(self, auth_data: AuthUserLogin):
         user = await self.auth_repository.login(auth_data)
