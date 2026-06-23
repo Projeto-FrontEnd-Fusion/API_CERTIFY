@@ -3,7 +3,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
 
-from api_certify.models.event_model import CreateEvent, EventInDb
+from api_certify.models.event_model import CreateEvent, EventInDb, UpdateEventSchema
 
 
 class EventRepository:
@@ -49,3 +49,25 @@ class EventRepository:
 
         doc = await self.collection.find_one({"_id": oid})
         return doc is not None
+
+    async def update(self, event_id: str, update_data: UpdateEventSchema) -> EventInDb | None:
+        fields = update_data.model_dump(exclude_none=True)
+
+        if not fields:
+                raise Exception("Nenhum campo para atualizar")
+        
+        fields["updated_at"] = datetime.now(timezone.utc)
+
+
+        result = await self.collection.find_one_and_update(
+            {"_id": ObjectId(event_id)},
+            {"$set": fields},
+            return_document=True,
+        )
+
+        if not result:
+            raise Exception("Evento não encontrado")
+
+        result["_id"] = str(result["_id"])
+
+        return EventInDb(**result)

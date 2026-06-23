@@ -618,6 +618,138 @@ async def test_get_event_not_found(async_client, event_service_mock):
 
     assert response.status_code == 404
 
+# ==========================================
+# TESTS - UPDATE EVENT
+# ==========================================
+
+
+@pytest.mark.asyncio
+async def test_update_event_success(async_client, event_service_mock, auth_headers):
+
+    event_service_mock.update_event.return_value = {
+            "_id": "evt_123",
+            "name": "Evento Teste",
+            "institution": "Instituição",
+            "workload": 5,
+            "description": "Descrição",
+            "start_date": "2025-11-05T00:00:00",
+            "end_date": "2025-11-07T00:00:00",
+    }
+
+    response = await async_client.put(
+        "/api/v1/events/evt_123",
+        json={"name": "Evento Teste Atualizado"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["message"] == "Dados atualizados com sucesso"
+
+
+@pytest.mark.asyncio
+async def test_update_event_not_found(async_client, event_service_mock, auth_headers):
+
+    event_service_mock.update_event.side_effect = Exception("Evento não encontrado")
+
+    response = await async_client.put(
+        "/api/v1/events/evt_123",
+        json={"name": "Evento Teste Atualizado"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_event_negative_workload(
+    async_client, event_service_mock, auth_headers
+):
+
+    event_service_mock.update_event.return_value = {
+            "_id": "evt_123",
+            "name": "Evento Teste",
+            "workload": 5,
+    }
+
+    response = await async_client.put(
+        "/api/v1/events/evt_123",
+        json={
+            "name": "Evento Teste Atualizado",
+            "workload": 0,
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422 # Alerta de Unprocessable Content 
+
+@pytest.mark.asyncio
+async def test_update_event_invalid_dates(
+    async_client, event_service_mock, auth_headers
+):
+
+    event_service_mock.update_event.return_value = {
+            "_id": "evt_123",
+            "name": "Evento Teste",
+            "workload": 5,
+            "start_date": "2025-11-05T00:00:00",
+            "end_date": "2025-11-06T00:00:00"
+
+    }
+
+    response = await async_client.put(
+        "/api/v1/events/evt_123",
+        json={
+            "name": "Evento Teste Atualizado",
+            "start_date": "2025-11-05T00:00:00",
+            "end_date": "2025-11-04T00:00:00"
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422 # Alerta de Unprocessable Content 
+
+@pytest.mark.asyncio
+async def test_update_event_single_date(
+    async_client, event_service_mock, auth_headers
+):
+
+    event_service_mock.update_event.return_value = {
+            "_id": "evt_123",
+            "name": "Evento Teste",
+            "workload": 5,
+            "start_date": "2025-11-05T00:00:00",
+            "end_date": "2025-11-06T00:00:00"
+
+    }
+
+    response = await async_client.put(
+        "/api/v1/events/evt_123",
+        json={
+            "name": "Evento Teste Atualizado",
+            "end_date": "2025-11-04T00:00:00"
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422 # Alerta de Unprocessable Content 
+
+
+
+@pytest.mark.asyncio
+async def test_create_event_without_token(async_client_no_auth):
+
+    response = await async_client_no_auth.put(
+        "/api/v1/events/evt_123",
+        json={
+            "name": "Evento Teste Atualizado",
+        },
+    )
+
+    assert response.status_code == 403
 
 # ==========================================
 # TESTS - AUTH ENDPOINTS
