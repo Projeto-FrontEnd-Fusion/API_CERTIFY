@@ -48,12 +48,3 @@ class CreateCompany(BaseModel):
     @classmethod
     def validate_cnpj(cls, v: str) -> str:
         return validar_cnpj(v)
-
-
-class CompanyResponse(BaseModel):
-    id: str
-    razao_social: str
-    cnpj: str
-    email: EmailStr
-    phone: str | None = None
-    role: str = "empresa"
