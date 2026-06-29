@@ -1,13 +1,19 @@
-from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
+from datetime import datetime, timezone
+
+from bson import ObjectId
+from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorDatabase
+
+from api_certify.core.security import HashManager
 from api_certify.models.auth_model import (
     AuthUser,
-    AuthUserReponse,
     AuthUserLogin,
+    AuthUserReponse,
+    CompanyResponse,
+    CompanyUser,
+    Role,
     UpdateUserSchema,
 )
-from datetime import datetime, timezone
-from api_certify.core.security import HashManager
-from bson import ObjectId
+from api_certify.schemas.company_schema import validar_cnpj
 
 
 class AuthRepository:
@@ -135,3 +141,53 @@ class AuthRepository:
         del result["password"]
 
         return AuthUserReponse(**result)
+
+    async def create_company(self, company_data: CompanyUser) -> CompanyResponse:
+        """
+        Cria uma nova empresa com validação de CNPJ e checagem de duplicatas
+        """
+
+        # normalizar e validar cnpj
+        try:
+            cnpj_normalized = validar_cnpj(company_data.cnpj)
+        except ValueError:
+            raise Exception("CNPJ inválido")
+
+        # checar duplicidade de CNPJ
+        existing_cnpj = await self.collection.find_one({"cnpj": cnpj_normalized})
+
+        if existing_cnpj:
+            raise Exception("CNPJ já cadastrado")
+
+        # checar duplicidade de email
+        existing_email = await self.collection.find_one({"email": company_data.email})
+
+        if existing_email:
+            raise Exception("Email já cadastrado")
+
+        company_dict = company_data.model_dump()
+
+        company_dict.update(
+            {
+                "cnpj": cnpj_normalized,
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+                "status": "pending",
+                "password": HashManager.hash_password(company_data.password),
+                "role": (
+                    Role.EMPRESA.value if hasattr(Role, "EMPRESA") else Role.EMPRESA
+                ),
+            }
+        )
+
+        result = await self.collection.insert_one(company_dict)
+
+        created = await self.collection.find_one({"_id": result.inserted_id})
+
+        if not created:
+            raise Exception("Falha ao criar empresa")
+
+        created["_id"] = str(created["_id"])
+        del created["password"]
+
+        return CompanyResponse(**created)

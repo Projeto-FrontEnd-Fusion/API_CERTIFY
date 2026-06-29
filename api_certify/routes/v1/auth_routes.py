@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
-from api_certify.schemas.responses import SucessResponse
-from api_certify.models.auth_model import AuthUser, UpdateUserSchema
-from api_certify.service.auth_service import AuthService, AuthUserLogin
+
 from api_certify.dependencies import get_auth_service, get_current_user
+from api_certify.models.auth_model import AuthUser, CompanyUser, UpdateUserSchema
+from api_certify.schemas.responses import SucessResponse
+from api_certify.service.auth_service import AuthService, AuthUserLogin
 
 auth_routes = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -22,6 +23,51 @@ async def create_auth(
 
     except Exception as err:
         raise HTTPException(status_code=400, detail=str(err))
+
+
+@auth_routes.post(
+    "/signup/company",
+    response_model=SucessResponse,
+    status_code=201,
+)
+async def create_company(
+    company_data: CompanyUser,
+    service: AuthService = Depends(get_auth_service),
+):
+    try:
+        company = await service.create_company_user(company_data)
+
+        return SucessResponse(
+            success=True,
+            message="Empresa cadastrada com sucesso",
+            data={"auth": company},
+        )
+
+    except Exception as err:
+        error_message = str(err)
+
+        if "CNPJ já cadastrado" in error_message:
+            raise HTTPException(
+                status_code=409,
+                detail="CNPJ já cadastrado",
+            )
+
+        if "Email já cadastrado" in error_message:
+            raise HTTPException(
+                status_code=409,
+                detail="Email já cadastrado",
+            )
+
+        if "CNPJ inválido" in error_message:
+            raise HTTPException(
+                status_code=400,
+                detail="CNPJ inválido",
+            )
+
+        raise HTTPException(
+            status_code=400,
+            detail=error_message,
+        )
 
 
 @auth_routes.post("/login", response_model=SucessResponse, status_code=200)

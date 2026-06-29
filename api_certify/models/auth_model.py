@@ -56,7 +56,7 @@ class AuthUser(BaseModel):
         description=DESC_PASSWORD,
         example=EXAMPLE_PASSWORD,
     )
-    role: Role = Field(..., description=DESC_ROLE, example=Role.USER)
+    role: Role = Field(default=Role.USER)
     status: Optional[str] = Field(None, description=DESC_STATUS, example=EXAMPLE_STATUS)
     created_at: Optional[datetime] = Field(None, description=DESC_CREATED_AT)
     updated_at: Optional[datetime] = Field(None, description=DESC_UPDATED_AT)
@@ -120,3 +120,40 @@ class AuthUserReponse(BaseModel):
     updated_at: Optional[datetime] = Field(
         None, description=DESC_UPDATED_AT, example=EXAMPLE_DATETIME
     )
+
+
+# Company-specific models
+DESC_COMPANY_NAME = "Razão social da empresa/instituição"
+EXAMPLE_COMPANY_NAME = "Empresa Exemplo Ltda"
+DESC_CNPJ = "CNPJ válido da empresa"
+EXAMPLE_CNPJ = "12345678000195"
+
+
+class CompanyUser(BaseModel):
+    razao_social: str = Field(
+        ...,
+        min_length=3,
+        max_length=200,
+        description=DESC_COMPANY_NAME,
+        example=EXAMPLE_COMPANY_NAME,
+    )
+    cnpj: str = Field(..., description=DESC_CNPJ, example=EXAMPLE_CNPJ)
+    email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
+    password: str = Field(
+        ...,
+        max_length=PASSWORD_MAX,
+        min_length=PASSWORD_MIN,
+        description=DESC_PASSWORD,
+        example=EXAMPLE_PASSWORD,
+    )
+    phone: Optional[str] = Field(None, description=DESC_PHONE, example=EXAMPLE_PHONE)
+    role: Role = Field(default=Role.EMPRESA)
+
+
+class CompanyResponse(BaseModel):
+    id: str = Field(..., alias="_id")
+    razao_social: str
+    cnpj: str
+    email: EmailStr
+    phone: Optional[str] = None
+    role: Role = Field(default=Role.EMPRESA)
