@@ -2,6 +2,8 @@ import pytest
 from unittest.mock import AsyncMock
 from fastapi import HTTPException
 
+from datetime import datetime, timedelta, timezone
+
 from api_certify.models.auth_model import (
     AuthUser,
     AuthUserLogin,
@@ -59,6 +61,51 @@ async def test_login_success(auth_service, auth_repository_mock):
 
     assert result["token_type"] == "bearer"
     assert "access_token" in result
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_success(auth_service, auth_repository_mock):
+    auth_repository_mock.get_user_by_email = AsyncMock(
+        return_value=AuthUserReponse(
+            _id="1",
+            fullname="Teste User",
+            email="teste@example.com",
+            role=Role.USER,
+            status="pending",
+        )
+    )
+    auth_repository_mock.store_password_reset_code = AsyncMock(return_value={"message": "ok"})
+
+    result = await auth_service.forgot_password("teste@example.com")
+
+    assert result["message"] == "Código de recuperação enviado"
+
+
+@pytest.mark.asyncio
+async def test_verify_code_success(auth_service, auth_repository_mock):
+    auth_repository_mock.get_user_by_email = AsyncMock(
+        return_value=AuthUserReponse(
+            _id="1",
+            fullname="Teste User",
+            email="teste@example.com",
+            role=Role.USER,
+            status="pending",
+        )
+    )
+    auth_repository_mock.verify_password_reset_code = AsyncMock(return_value={"message": "Código verificado com sucesso"})
+
+    result = await auth_service.verify_code("teste@example.com", "123456")
+
+    assert result["message"] == "Código verificado com sucesso"
+
+
+@pytest.mark.asyncio
+async def test_reset_password_success(auth_service, auth_repository_mock):
+    auth_repository_mock.reset_password_with_code = AsyncMock(return_value={"message": "Senha redefinida com sucesso"})
+
+    result = await auth_service.reset_password("teste@example.com", "123456", "NovaSenha123!")
+
+    assert result["message"] == "Senha redefinida com sucesso"
 
 
 @pytest.mark.asyncio
