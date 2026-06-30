@@ -83,6 +83,23 @@ async def async_client(override_dependencies):
         yield client
 
 
+@pytest_asyncio.fixture
+async def async_client_auth_only(
+    certificate_service_mock,
+):
+    app.dependency_overrides[get_certificate_service] = lambda: certificate_service_mock
+
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        yield client
+
+    app.dependency_overrides.clear()
+
+
 # ==========================================
 # HELPERS
 # ==========================================
@@ -248,6 +265,67 @@ async def test_create_certificate(
 
 
 @pytest.mark.asyncio
+async def test_create_certificate_passes_issuer_id(
+    company_client,
+    certificate_service_mock,
+    company_headers,
+):
+    certificate_service_mock.create_participant_certificate.return_value = {
+        "id": "cert_124",
+        "fullname": "João Silva Santos",
+        "event_id": "evt_123",
+        "status": "available",
+    }
+
+    response = await company_client.post(
+        "/api/v1/certificate/user123",
+        json={
+            "fullname": "João Silva Santos",
+            "access_key": "ABC123",
+            "event_id": "evt_123",
+            "status": "pending",
+            "email": "joao@email.com",
+        },
+        headers=company_headers,
+    )
+
+    assert response.status_code == 201
+    certificate_service_mock.create_participant_certificate.assert_awaited_once()
+    called_args = certificate_service_mock.create_participant_certificate.call_args.args
+    called_kwargs = certificate_service_mock.create_participant_certificate.call_args.kwargs
+
+    assert called_args[0] == "user123"
+    assert called_kwargs["issuer_id"] == "company123"
+
+
+@pytest.mark.asyncio
+async def test_get_certificates_by_issuer_with_jwt_auth(
+    async_client_auth_only,
+    certificate_service_mock,
+    company_headers,
+):
+    certificate_service_mock.get_certificates_by_issuer.return_value = {
+        "items": [{"id": "cert_123"}],
+        "total": 1,
+        "page": 1,
+        "limit": 20,
+        "total_pages": 1,
+    }
+
+    response = await async_client_auth_only.get(
+        "/api/v1/certificate/issuer/company123",
+        headers=company_headers,
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["data"]["items"][0]["id"] == "cert_123"
+
+
+@pytest.mark.asyncio
 async def test_get_many_certificates(
     async_client,
     certificate_service_mock,
@@ -301,6 +379,85 @@ async def test_get_certificate_by_id(
 
     assert certificate is not None
     assert certificate["id"] == "cert_123"
+
+
+@pytest.mark.asyncio
+async def test_get_certificates_by_issuer_company_access(
+    company_client,
+    certificate_service_mock,
+    company_headers,
+):
+
+    certificate_service_mock.get_certificates_by_issuer.return_value = {
+        "items": [{"id": "cert_123"}],
+        "total": 1,
+        "page": 1,
+        "limit": 20,
+        "total_pages": 1,
+    }
+
+    response = await company_client.get(
+        "/api/v1/certificate/issuer/company123",
+        headers=company_headers,
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["data"]["total"] == 1
+    assert body["data"]["items"][0]["id"] == "cert_123"
+
+
+@pytest.mark.asyncio
+async def test_get_certificates_by_issuer_admin_access(
+    admin_client,
+    certificate_service_mock,
+    admin_headers,
+):
+
+    certificate_service_mock.get_certificates_by_issuer.return_value = {
+        "items": [{"id": "cert_456"}],
+        "total": 1,
+        "page": 1,
+        "limit": 20,
+        "total_pages": 1,
+    }
+
+    response = await admin_client.get(
+        "/api/v1/certificate/issuer/company123?event_id=event-1&status=available",
+        headers=admin_headers,
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["data"]["items"][0]["id"] == "cert_456"
+
+
+@pytest.mark.asyncio
+async def test_get_certificates_by_issuer_company_forbidden_when_other_company(
+    async_client,
+    certificate_service_mock,
+    auth_headers,
+):
+    app.dependency_overrides[get_current_user] = lambda: {
+        "sub": "other_company",
+        "email": "other@empresa.com",
+        "role": "empresa",
+    }
+
+    response = await async_client.get(
+        "/api/v1/certificate/issuer/company123",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 403
+
+    app.dependency_overrides.clear()
 
 
 # ==========================================
@@ -532,6 +689,19 @@ def company_headers():
 
 
 @pytest.fixture
+def admin_headers():
+    token = create_access_token(
+        {
+            "sub": "admin123",
+            "email": "admin@test.com",
+            "role": "admin",
+        }
+    )
+
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
 def override_company_dependencies(
     auth_service_mock,
     certificate_service_mock,
@@ -549,6 +719,37 @@ def override_company_dependencies(
 @pytest_asyncio.fixture
 async def company_client(
     override_company_dependencies,
+):
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as client:
+        yield client
+
+
+@pytest.fixture
+def override_admin_dependencies(
+    auth_service_mock,
+    certificate_service_mock,
+):
+    app.dependency_overrides[get_auth_service] = lambda: auth_service_mock
+    app.dependency_overrides[get_certificate_service] = lambda: certificate_service_mock
+    app.dependency_overrides[get_current_user] = lambda: {
+        "sub": "admin123",
+        "email": "admin@test.com",
+        "role": "admin",
+    }
+
+    yield
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def admin_client(
+    override_admin_dependencies,
 ):
     transport = ASGITransport(app=app)
 

@@ -30,6 +30,7 @@ def mocked_certificate(
     participantEmail: str,
     access_key: str,
     status: str,
+    issuer_id: str | None = None,
 ) -> dict:
 
     now = datetime.now(timezone.utc)
@@ -52,6 +53,9 @@ def mocked_certificate(
         "issued_at": now,
         "valid_until": add_years(now, 2),
     }
+
+    if issuer_id is not None:
+        result["issuer_id"] = issuer_id
 
     return result
 
@@ -94,7 +98,10 @@ class CertificateRepository:
     # ========================================
 
     async def create(
-        self, user_id: str, certificate_data: CreateCertificate
+        self,
+        user_id: str,
+        certificate_data: CreateCertificate,
+        issuer_id: str | None = None,
     ) -> CertificateInDb:
 
         if certificate_data.access_key != ACCESS_KEY:
@@ -111,6 +118,7 @@ class CertificateRepository:
             participantName=certificate_data.fullname,
             access_key=str(uuid.uuid4()),
             status="available",
+            issuer_id=issuer_id,
         )
 
         result = await self.certificate_collection.insert_one(created_certificate)
@@ -148,6 +156,59 @@ class CertificateRepository:
             raise Exception("Usuário não encontrado")
 
         filter_query = {"user_id": user_id}
+
+        total = await self.certificate_collection.count_documents(filter_query)
+
+        cursor = (
+            self.certificate_collection.find(filter_query)
+            .sort("issued_at", -1)
+            .skip(skip)
+            .limit(limit)
+        )
+
+        docs = await cursor.to_list(length=limit)
+
+        for doc in docs:
+            doc["_id"] = str(doc["_id"])
+
+        certificates = [CertificateInDb(**doc) for doc in docs]
+
+        total_pages = math.ceil(total / limit) if total > 0 else 0
+
+        return {
+            "items": certificates,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "total_pages": total_pages,
+        }
+
+    # ========================================
+    # Buscar certificados por emissor
+    # ========================================
+
+    async def get_certificates_by_issuer(
+        self,
+        empresa_id: str,
+        skip: int = 0,
+        limit: int = 20,
+        page: int = 1,
+        event_id: str | None = None,
+        status: str | None = None,
+    ) -> dict:
+
+        filter_query = {
+            "$or": [
+                {"institution_name": empresa_id},
+                {"issuer_id": empresa_id},
+            ]
+        }
+
+        if event_id:
+            filter_query["event_id"] = event_id
+
+        if status:
+            filter_query["status"] = status
 
         total = await self.certificate_collection.count_documents(filter_query)
 

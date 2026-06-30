@@ -129,6 +129,11 @@ class CertificateInDb(BaseModel):
         description=DESC_CERTIFICATE_USER_ID,
         example=EXAMPLE_CERTIFICATE_USER_ID,
     )
+    issuer_id: Optional[str] = Field(
+        None,
+        description="Identificador da empresa emissora do certificado",
+        example=EXAMPLE_CERTIFICATE_USER_ID,
+    )
     access_key: str = Field(
         ...,
         description=DESC_CERTIFICATE_ACCESS_KEY,
