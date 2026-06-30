@@ -73,6 +73,27 @@ class AuthUserLogin(BaseModel):
     )
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
+
+
+class VerifyCodeRequest(BaseModel):
+    email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
+    code: str = Field(..., min_length=6, max_length=6, pattern=r'^\d{6}$')
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
+    code: str = Field(..., min_length=6, max_length=6, pattern=r'^\d{6}$')
+    new_password: str = Field(
+        ...,
+        max_length=PASSWORD_MAX,
+        min_length=PASSWORD_MIN,
+        description=DESC_PASSWORD,
+        example=EXAMPLE_PASSWORD,
+    )
+
+
 class AuthUserInDb(AuthUser):
     id: str = Field(..., alias="_id", description=DESC_USER_ID, example=EXAMPLE_USER_ID)
     model_config = ConfigDict(use_enum_values=True, populate_by_name=True)
