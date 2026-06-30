@@ -1,6 +1,6 @@
+import math
 import os
 import uuid
-import math
 from datetime import datetime, timezone
 
 from bson.objectid import ObjectId
@@ -30,10 +30,35 @@ def mocked_certificate(
     participantEmail: str,
     access_key: str,
     status: str,
+    event_data: dict | None = None,
 ) -> dict:
 
     now = datetime.now(timezone.utc)
     format = "%Y-%m-%dT%H:%M:%S.%fZ"
+
+    if event_data is None:
+        event_data = {
+            "id": "1",
+            "name": "Imersão Dev Insights",
+            "institution": "Comunidade Frontend Fusion",
+            "description": "Participou da Imersão Dev Insights.",
+            "workload": 9,
+            "start_date": datetime.strptime("2025-11-05T00:00:00.000Z", format),
+            "end_date": datetime.strptime("2025-11-07T00:00:00.000Z", format),
+        }
+
+    event_id = str(event_data.get("id") or event_data.get("_id") or "1")
+    event_name = event_data.get("name") or event_data.get("event_name") or "Evento"
+    institution_name = (
+        event_data.get("institution")
+        or event_data.get("institution_name")
+        or "Comunidade Frontend Fusion"
+    )
+    description = event_data.get("description") or "Participou do evento."
+    workload = str(event_data.get("workload") or "9")
+    event_start = event_data.get("start_date")
+    event_end = event_data.get("end_date")
+    event_date = event_data.get("start_date")
 
     result = {
         "user_id": str(userId),
@@ -41,14 +66,14 @@ def mocked_certificate(
         "status": status,
         "participant_name": participantName,
         "participant_email": participantEmail,
-        "institution_name": "Comunidade Frontend Fusion",
-        "event_id": "1",
-        "event_name": "Imersão Dev Insights",
-        "description": "Participou da Imersão Dev Insights.",
-        "workload": "9",
-        "event_start": datetime.strptime("2025-11-05T00:00:00.000Z", format),
-        "event_end": datetime.strptime("2025-11-07T00:00:00.000Z", format),
-        "event_date": datetime.strptime("2025-11-05T00:00:00.000Z", format),
+        "institution_name": institution_name,
+        "event_id": event_id,
+        "event_name": event_name,
+        "description": description,
+        "workload": workload,
+        "event_start": event_start,
+        "event_end": event_end,
+        "event_date": event_date,
         "issued_at": now,
         "valid_until": add_years(now, 2),
     }
@@ -89,12 +114,33 @@ class CertificateRepository:
 
         return None
 
+    async def find_existing_certificate_by_email(
+        self, event_id: str, email: str
+    ) -> CertificateInDb | None:
+        normalized_email = email.strip().lower()
+
+        existing_certificate = await self.certificate_collection.find_one(
+            {
+                "participant_email": normalized_email,
+                "event_id": event_id,
+            }
+        )
+
+        if existing_certificate:
+            existing_certificate["_id"] = str(existing_certificate["_id"])
+            return CertificateInDb(**existing_certificate)
+
+        return None
+
     # ========================================
     # Criar certificado
     # ========================================
 
     async def create(
-        self, user_id: str, certificate_data: CreateCertificate
+        self,
+        user_id: str,
+        certificate_data: CreateCertificate,
+        event_data: dict | None = None,
     ) -> CertificateInDb:
 
         if certificate_data.access_key != ACCESS_KEY:
@@ -111,6 +157,7 @@ class CertificateRepository:
             participantName=certificate_data.fullname,
             access_key=str(uuid.uuid4()),
             status="available",
+            event_data=event_data,
         )
 
         result = await self.certificate_collection.insert_one(created_certificate)

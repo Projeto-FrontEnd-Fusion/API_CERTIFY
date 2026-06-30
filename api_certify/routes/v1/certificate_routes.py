@@ -5,7 +5,10 @@ from api_certify.dependencies import (
     get_current_user,
     require_role,
 )
-from api_certify.models.certificate_model import CreateCertificate
+from api_certify.models.certificate_model import (
+    BatchCertificateRequest,
+    CreateCertificate,
+)
 from api_certify.schemas.responses import SucessResponse
 from api_certify.service.certificate_service import CertificateService
 
@@ -33,6 +36,33 @@ async def validate_certificate(
         success=True,
         message="Certificado válido.",
         data={"certificate": certificate},
+    )
+
+
+# ================================
+# Criar certificados em lote (PROTEGIDA)
+# ================================
+@certificate_routes.post(
+    "/batch",
+    response_model=SucessResponse,
+    status_code=201,
+)
+async def create_batch_certificates(
+    payload: BatchCertificateRequest,
+    service: CertificateService = Depends(get_certificate_service),
+    current_user: dict = Depends(require_role("empresa")),
+):
+    summary = await service.create_batch_certificates(payload)
+
+    if hasattr(summary, "model_dump"):
+        response_data = summary.model_dump()
+    else:
+        response_data = summary
+
+    return SucessResponse(
+        success=True,
+        message="Emissão em lote concluída.",
+        data=response_data,
     )
 
 
