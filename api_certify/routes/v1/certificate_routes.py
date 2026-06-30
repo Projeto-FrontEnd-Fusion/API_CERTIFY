@@ -5,7 +5,7 @@ from api_certify.dependencies import (
     get_current_user,
     require_role,
 )
-from api_certify.models.certificate_model import CreateCertificate
+from api_certify.models.certificate_model import CreateCertificate, Status
 from api_certify.schemas.responses import SucessResponse
 from api_certify.service.certificate_service import CertificateService
 
@@ -50,7 +50,11 @@ async def request_certificate(
     service: CertificateService = Depends(get_certificate_service),
     current_user: dict = Depends(require_role("empresa")),
 ):
-    certificate = await service.create_participant_certificate(user_id, payload)
+    certificate = await service.create_participant_certificate(
+        user_id,
+        payload,
+        issuer_id=current_user.get("sub"),
+    )
 
     return SucessResponse(
         success=True,
@@ -96,6 +100,62 @@ async def get_many_certificate(
         user_id=user_id,
         page=page,
         limit=limit,
+    )
+
+    return SucessResponse(
+        success=True,
+        message="Certificados obtidos com sucesso.",
+        data=certificates,
+    )
+
+
+# ================================
+# Listar certificados emitidos por empresa (PROTEGIDA)
+# ================================
+@certificate_routes.get(
+    "/issuer/{empresa_id}",
+    response_model=SucessResponse,
+    status_code=200,
+)
+async def get_certificates_by_issuer(
+    empresa_id: str,
+    page: int = Query(
+        1,
+        ge=1,
+        description="Número da página",
+    ),
+    limit: int = Query(
+        20,
+        ge=1,
+        le=100,
+        description="Quantidade máxima de registros por página",
+    ),
+    event_id: str | None = Query(
+        None,
+        description="Filtrar por event_id",
+    ),
+    status: Status | None = Query(
+        None,
+        description='Filtrar por status',
+    ),
+    service: CertificateService = Depends(get_certificate_service),
+    current_user: dict = Depends(require_role("empresa")),
+):
+    role = current_user.get("role")
+    token_user_id = current_user.get("sub")
+
+    if role == "empresa" and token_user_id != empresa_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Acesso negado. Permissão insuficiente para esta ação.",
+        )
+
+    certificates = await service.get_certificates_by_issuer(
+        empresa_id=empresa_id,
+        page=page,
+        limit=limit,
+        event_id=event_id,
+        status=status.value if status else None,
     )
 
     return SucessResponse(

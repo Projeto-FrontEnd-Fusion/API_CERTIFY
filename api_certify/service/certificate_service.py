@@ -24,7 +24,10 @@ class CertificateService:
     # =====================================
 
     async def create_participant_certificate(
-        self, user_id: str, certificate_data: CreateCertificate
+        self,
+        user_id: str,
+        certificate_data: CreateCertificate,
+        issuer_id: str | None = None,
     ) -> CertificateInDb:
 
         # Verifica se usuário existe
@@ -84,6 +87,25 @@ class CertificateService:
     async def get_certificate_by_id(self, certificate_id: str) -> CertificateInDb:
         response = await self.certificate_repository.get_certificate(certificate_id)
         return response
+
+    async def get_certificates_by_issuer(
+        self,
+        empresa_id: str,
+        page: int = 1,
+        limit: int = 20,
+        event_id: str | None = None,
+        status: str | None = None,
+    ):
+        skip = (page - 1) * limit
+
+        return await self.certificate_repository.get_certificates_by_issuer(
+            empresa_id=empresa_id,
+            skip=skip,
+            limit=limit,
+            page=page,
+            event_id=event_id,
+            status=status,
+        )
 
     async def validate_certificate(
         self, access_key: str
