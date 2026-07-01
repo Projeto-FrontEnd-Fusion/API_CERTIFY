@@ -28,6 +28,18 @@ class AuthRepository:
         auth_in_db = await self.collection.find_one({"_id": ObjectId(user_id)})
         return auth_in_db is not None
 
+    async def find_by_email(self, email: str) -> dict | None:
+        """
+        Busca um usuário pelo e-mail para emissão de certificados em lote.
+        """
+        normalized_email = email.strip().lower()
+        user = await self.collection.find_one({"email": normalized_email})
+
+        if user:
+            user["_id"] = str(user["_id"])
+
+        return user
+
     async def create(self, auth_data: AuthUser) -> AuthUserReponse:
         """
         Cria um novo usuário

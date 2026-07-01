@@ -19,6 +19,7 @@ async def auth_repository_mock():
     repo = AsyncMock()
 
     repo.isExistAuth.return_value = False
+    repo.find_by_email.return_value = None
     repo.create_auth_user.return_value = None
     repo.login_auth.return_value = {"access_token": "fake-token"}
     repo.get_user_by_id.return_value = AuthUserReponse(
@@ -49,6 +50,7 @@ async def certificate_repository_mock():
     repo = AsyncMock()
 
     repo.find_existing_certificate.return_value = None
+    repo.find_existing_certificate_by_email.return_value = None
     repo.create.return_value = None
     repo.get_many_certificates.return_value = []
     repo.get_certificate.return_value = None
