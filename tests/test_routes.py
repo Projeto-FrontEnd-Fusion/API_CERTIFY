@@ -299,6 +299,33 @@ async def test_create_certificate_passes_issuer_id(
 
 
 @pytest.mark.asyncio
+async def test_create_batch_certificates(
+    company_client, certificate_service_mock, company_headers
+):
+    certificate_service_mock.create_batch_certificates.return_value = {
+        "total_enviados": 2,
+        "criados": 2,
+        "duplicados_ignorados": 0,
+        "erros": 0,
+    }
+
+    response = await company_client.post(
+        "/api/v1/certificate/batch",
+        json={
+            "event_id": "evt_123",
+            "participants": [
+                {"fullname": "João Silva Santos", "email": "joao@email.com"},
+                {"fullname": "Maria Souza", "email": "maria@email.com"},
+            ],
+        },
+        headers=company_headers,
+    )
+
+    assert response.status_code == 201
+    assert response.json()["data"]["criados"] == 2
+
+
+@pytest.mark.asyncio
 async def test_get_certificates_by_issuer_with_jwt_auth(
     async_client_auth_only,
     certificate_service_mock,
