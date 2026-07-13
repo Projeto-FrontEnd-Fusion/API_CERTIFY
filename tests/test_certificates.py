@@ -233,6 +233,50 @@ async def test_get_many_certificates_empty_page(
     assert result["page"] == 999
 
 
+@pytest.mark.asyncio
+async def test_get_certificates_by_issuer_success(
+    certificate_service,
+    certificate_repository_mock,
+):
+    certificate_repository_mock.get_certificates_by_issuer = AsyncMock(
+        return_value={
+            "items": [
+                {
+                    "id": "cert_abc",
+                    "event_id": "event-1",
+                    "status": "available",
+                }
+            ],
+            "total": 1,
+            "page": 2,
+            "limit": 10,
+            "total_pages": 1,
+        }
+    )
+
+    result = await certificate_service.get_certificates_by_issuer(
+        empresa_id="company123",
+        page=2,
+        limit=10,
+        event_id="event-1",
+        status="available",
+    )
+
+    certificate_repository_mock.get_certificates_by_issuer.assert_awaited_once_with(
+        empresa_id="company123",
+        skip=10,
+        limit=10,
+        page=2,
+        event_id="event-1",
+        status="available",
+    )
+
+    assert result["page"] == 2
+    assert result["limit"] == 10
+    assert result["total"] == 1
+    assert result["items"][0]["id"] == "cert_abc"
+
+
 # -------------------------
 # Get certificate by ID
 # -------------------------
