@@ -62,6 +62,39 @@ async def test_login_success(auth_service, auth_repository_mock):
 
 
 @pytest.mark.asyncio
+async def test_forgot_password_unknown_email_raises_not_found(auth_service, auth_repository_mock):
+    auth_repository_mock.get_user_by_email = AsyncMock(return_value=None)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await auth_service.forgot_password("naoexiste@example.com")
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "Usuário não encontrado"
+
+
+@pytest.mark.asyncio
+async def test_verify_code_invalid_or_expired_raises_bad_request(auth_service, auth_repository_mock):
+    auth_repository_mock.get_user_by_email = AsyncMock(
+        return_value=AuthUserReponse(
+            _id="1",
+            fullname="Teste User",
+            email="teste@example.com",
+            role=Role.USER,
+            status="pending",
+        )
+    )
+    auth_repository_mock.verify_password_reset_code = AsyncMock(
+        return_value={"success": False, "message": "Código inválido ou expirado"}
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await auth_service.verify_code("teste@example.com", "000000")
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Código inválido ou expirado"
+
+
+@pytest.mark.asyncio
 async def test_signup_duplicate_email(auth_service, auth_repository_mock):
 
     payload = AuthUser(

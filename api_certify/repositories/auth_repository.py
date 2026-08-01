@@ -108,6 +108,95 @@ class AuthRepository:
 
         return AuthUserReponse(**auth_in_db)
 
+    async def get_user_by_email(self, email: str) -> AuthUserReponse | None:
+        auth_in_db = await self.collection.find_one({"email": email})
+
+        if not auth_in_db:
+            return None
+
+        auth_in_db["_id"] = str(auth_in_db["_id"])
+        if "password" in auth_in_db:
+            del auth_in_db["password"]
+
+        return AuthUserReponse(**auth_in_db)
+
+    async def store_password_reset_code(
+        self, user_id: str, code_hash: str, expires_at: datetime
+    ) -> None:
+        result = await self.collection.update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "password_reset_code": code_hash,
+                    "password_reset_expires_at": expires_at,
+                    "password_reset_used": False,
+                }
+            },
+        )
+
+        if result.matched_count == 0:
+            raise Exception("Usuário não encontrado")
+
+    async def verify_password_reset_code(self, user_id: str, code: str) -> dict:
+        auth_in_db = await self.collection.find_one({"_id": ObjectId(user_id)})
+
+        if not auth_in_db:
+            return {"success": False, "message": "Usuário não encontrado"}
+
+        stored_hash = auth_in_db.get("password_reset_code")
+        expires_at = auth_in_db.get("password_reset_expires_at")
+        used = auth_in_db.get("password_reset_used", False)
+
+        if not stored_hash or used or not expires_at:
+            return {"success": False, "message": "Código inválido ou expirado"}
+
+        if expires_at < datetime.now(timezone.utc):
+            return {"success": False, "message": "Código inválido ou expirado"}
+
+        if not HashManager.verify_password(code, stored_hash):
+            return {"success": False, "message": "Código inválido ou expirado"}
+
+        return {"success": True, "message": "Código verificado com sucesso"}
+
+    async def reset_password_with_code(
+        self, user_id: str, code: str, new_password: str
+    ) -> dict:
+        auth_in_db = await self.collection.find_one({"_id": ObjectId(user_id)})
+
+        if not auth_in_db:
+            return {"success": False, "message": "Usuário não encontrado"}
+
+        stored_hash = auth_in_db.get("password_reset_code")
+        expires_at = auth_in_db.get("password_reset_expires_at")
+        used = auth_in_db.get("password_reset_used", False)
+
+        if not stored_hash or used or not expires_at:
+            return {"success": False, "message": "Código inválido ou expirado"}
+
+        if expires_at < datetime.now(timezone.utc):
+            return {"success": False, "message": "Código inválido ou expirado"}
+
+        if not HashManager.verify_password(code, stored_hash):
+            return {"success": False, "message": "Código inválido ou expirado"}
+
+        result = await self.collection.update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "password": HashManager.hash_password(new_password),
+                    "password_reset_code": None,
+                    "password_reset_expires_at": None,
+                    "password_reset_used": True,
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            },
+        )
+
+        if result.matched_count == 0:
+            return {"success": False, "message": "Usuário não encontrado"}
+
+        return {"success": True, "message": "Senha redefinida com sucesso"}
+
     async def update(
         self, user_id: str, update_data: UpdateUserSchema
     ) -> AuthUserReponse:

@@ -1,9 +1,14 @@
+import logging
+import secrets
+import string
 from datetime import datetime, timedelta, timezone
+import re
 
 from fastapi import HTTPException, status
 
 from api_certify.core.security import (
     REFRESH_TOKEN_EXPIRE_DAYS,
+    HashManager,
     create_access_token,
     create_refresh_token,
     decode_refresh_token,
@@ -18,6 +23,9 @@ from api_certify.models.auth_model import (
 )
 from api_certify.repositories.auth_repository import AuthRepository
 from api_certify.repositories.refresh_token_repository import RefreshTokenRepository
+
+logger = logging.getLogger(__name__)
+PASSWORD_RESET_CODE_TTL_MINUTES = 10
 
 
 class AuthService:
@@ -141,6 +149,99 @@ class AuthService:
             )
 
         return {"message": "Sessão encerrada com sucesso"}
+
+    def _generate_reset_code(self) -> str:
+        return "".join(secrets.choice(string.digits) for _ in range(6))
+
+    def _send_password_reset_code(self, email: str, code: str) -> None:
+        logger.info("Código de recuperação para %s: %s", email, code)
+
+    def _is_strong_password(self, password: str) -> bool:
+        if len(password) < 8:
+            return False
+
+        has_upper = bool(re.search(r"[A-Z]", password))
+        has_lower = bool(re.search(r"[a-z]", password))
+        has_digit = bool(re.search(r"\d", password))
+        has_special = bool(re.search(r"[^A-Za-z0-9]", password))
+
+        return has_upper and has_lower and has_digit and has_special
+
+    async def forgot_password(self, email: str) -> dict:
+        user = await self.auth_repository.get_user_by_email(email)
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuário não encontrado",
+            )
+
+        code = self._generate_reset_code()
+        code_hash = HashManager.hash_password(code)
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            minutes=PASSWORD_RESET_CODE_TTL_MINUTES
+        )
+
+        await self.auth_repository.store_password_reset_code(
+            user_id=str(user.id),
+            code_hash=code_hash,
+            expires_at=expires_at,
+        )
+
+        self._send_password_reset_code(email, code)
+
+        return {"message": "Código de recuperação enviado"}
+
+    async def verify_code(self, email: str, code: str) -> dict:
+        user = await self.auth_repository.get_user_by_email(email)
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuário não encontrado",
+            )
+
+        result = await self.auth_repository.verify_password_reset_code(
+            user_id=str(user.id),
+            code=code,
+        )
+
+        if result.get("success") is False:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result["message"],
+            )
+
+        return result
+
+    async def reset_password(self, email: str, code: str, new_password: str) -> dict:
+        if not self._is_strong_password(new_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Senha não atende aos requisitos de segurança",
+            )
+
+        user = await self.auth_repository.get_user_by_email(email)
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuário não encontrado",
+            )
+
+        result = await self.auth_repository.reset_password_with_code(
+            user_id=str(user.id),
+            code=code,
+            new_password=new_password,
+        )
+
+        if result.get("success") is False:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result["message"],
+            )
+
+        return result
 
     async def get_me(self, user_id: str) -> AuthUserReponse:
         return await self.auth_repository.get_user_by_id(user_id)
