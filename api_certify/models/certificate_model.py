@@ -99,6 +99,41 @@ class CreateCertificate(BaseModel):
         )
 
 
+class BatchParticipant(BaseModel):
+    fullname: str = Field(
+        ...,
+        min_length=2,
+        description=DESC_REQ_CERTIFICATE_FULLNAME,
+        example=EXAMPLE_REQ_CERTIFICATE_FULLNAME,
+    )
+    email: EmailStr = Field(
+        ...,
+        description=DESC_REQ_CERTIFICATE_EMAIL,
+        example=EXAMPLE_REQ_CERTIFICATE_EMAIL,
+    )
+
+
+class BatchCertificateRequest(BaseModel):
+    event_id: str = Field(
+        ...,
+        description=DESC_CERTIFICATE_EVENT_ID,
+        example=EXAMPLE_CERTIFICATE_EVENT_ID,
+    )
+    participants: list[BatchParticipant] = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description='Lista de participantes a receber certificado.',
+    )
+
+
+class BatchCertificateSummary(BaseModel):
+    total_enviados: int
+    criados: int
+    duplicados_ignorados: int
+    erros: int
+
+
 class RequestCertificate(BaseModel):
     user_id: str = Field(
         ...,
@@ -127,6 +162,11 @@ class CertificateInDb(BaseModel):
     user_id: str = Field(
         ...,
         description=DESC_CERTIFICATE_USER_ID,
+        example=EXAMPLE_CERTIFICATE_USER_ID,
+    )
+    issuer_id: Optional[str] = Field(
+        None,
+        description="Identificador da empresa emissora do certificado",
         example=EXAMPLE_CERTIFICATE_USER_ID,
     )
     access_key: str = Field(

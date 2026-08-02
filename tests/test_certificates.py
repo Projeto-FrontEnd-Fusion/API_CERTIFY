@@ -233,6 +233,50 @@ async def test_get_many_certificates_empty_page(
     assert result["page"] == 999
 
 
+@pytest.mark.asyncio
+async def test_get_certificates_by_issuer_success(
+    certificate_service,
+    certificate_repository_mock,
+):
+    certificate_repository_mock.get_certificates_by_issuer = AsyncMock(
+        return_value={
+            "items": [
+                {
+                    "id": "cert_abc",
+                    "event_id": "event-1",
+                    "status": "available",
+                }
+            ],
+            "total": 1,
+            "page": 2,
+            "limit": 10,
+            "total_pages": 1,
+        }
+    )
+
+    result = await certificate_service.get_certificates_by_issuer(
+        empresa_id="company123",
+        page=2,
+        limit=10,
+        event_id="event-1",
+        status="available",
+    )
+
+    certificate_repository_mock.get_certificates_by_issuer.assert_awaited_once_with(
+        empresa_id="company123",
+        skip=10,
+        limit=10,
+        page=2,
+        event_id="event-1",
+        status="available",
+    )
+
+    assert result["page"] == 2
+    assert result["limit"] == 10
+    assert result["total"] == 1
+    assert result["items"][0]["id"] == "cert_abc"
+
+
 # -------------------------
 # Get certificate by ID
 # -------------------------
@@ -325,3 +369,84 @@ async def test_create_certificate_event_not_found(
         )
 
     assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_batch_certificates_success(
+    certificate_service,
+    certificate_repository_mock,
+    auth_repository_mock,
+    event_repository_mock,
+    certificate_mock,
+):
+    event_repository_mock.find_by_id = AsyncMock(
+        return_value={
+            "id": "event-1",
+            "name": "Evento Teste",
+            "institution": "Instituto Teste",
+            "workload": 10,
+            "description": "Descrição do evento",
+            "start_date": datetime(2026, 1, 1),
+            "end_date": datetime(2026, 1, 2),
+            "created_at": datetime(2026, 1, 1),
+        }
+    )
+    certificate_repository_mock.find_existing_certificate = AsyncMock(return_value=None)
+    certificate_repository_mock.create = AsyncMock(return_value=certificate_mock)
+    auth_repository_mock.find_by_email = AsyncMock(return_value=None)
+
+    result = await certificate_service.create_batch_certificates(
+        {
+            "event_id": "event-1",
+            "participants": [
+                {"fullname": "Teste User", "email": "teste@example.com"},
+                {"fullname": "Outro User", "email": "outro@example.com"},
+            ],
+        }
+    )
+
+    assert result.total_enviados == 2
+    assert result.criados == 2
+    assert result.duplicados_ignorados == 0
+    assert result.erros == 0
+
+
+@pytest.mark.asyncio
+async def test_create_batch_certificates_ignores_duplicates(
+    certificate_service,
+    certificate_repository_mock,
+    auth_repository_mock,
+    event_repository_mock,
+    certificate_mock,
+):
+    event_repository_mock.find_by_id = AsyncMock(
+        return_value={
+            "id": "event-1",
+            "name": "Evento Teste",
+            "institution": "Instituto Teste",
+            "workload": 10,
+            "description": "Descrição do evento",
+            "start_date": datetime(2026, 1, 1),
+            "end_date": datetime(2026, 1, 2),
+            "created_at": datetime(2026, 1, 1),
+        }
+    )
+    certificate_repository_mock.find_existing_certificate_by_email = AsyncMock(
+        side_effect=[certificate_mock, None]
+    )
+    certificate_repository_mock.create = AsyncMock(return_value=certificate_mock)
+    auth_repository_mock.find_by_email = AsyncMock(return_value=None)
+
+    result = await certificate_service.create_batch_certificates(
+        {
+            "event_id": "event-1",
+            "participants": [
+                {"fullname": "Teste User", "email": "teste@example.com"},
+                {"fullname": "Outro User", "email": "outro@example.com"},
+            ],
+        }
+    )
+
+    assert result.criados == 1
+    assert result.duplicados_ignorados == 1
+    assert result.erros == 0

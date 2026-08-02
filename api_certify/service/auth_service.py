@@ -21,11 +21,11 @@ from api_certify.models.auth_model import (
     CompanyUser,
     UpdateUserSchema,
 )
-from api_certify.repositories.auth_repository import AuthRepository
-from api_certify.repositories.refresh_token_repository import RefreshTokenRepository
 
 logger = logging.getLogger(__name__)
 PASSWORD_RESET_CODE_TTL_MINUTES = 10
+from api_certify.repositories.auth_repository import AuthRepository
+from api_certify.repositories.refresh_token_repository import RefreshTokenRepository
 
 
 class AuthService:

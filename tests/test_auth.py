@@ -2,6 +2,8 @@ import pytest
 from unittest.mock import AsyncMock
 from fastapi import HTTPException
 
+from datetime import datetime, timedelta, timezone
+
 from api_certify.models.auth_model import (
     AuthUser,
     AuthUserLogin,
@@ -62,7 +64,9 @@ async def test_login_success(auth_service, auth_repository_mock):
 
 
 @pytest.mark.asyncio
-async def test_forgot_password_unknown_email_raises_not_found(auth_service, auth_repository_mock):
+async def test_forgot_password_unknown_email_raises_not_found(
+    auth_service, auth_repository_mock
+):
     auth_repository_mock.get_user_by_email = AsyncMock(return_value=None)
 
     with pytest.raises(HTTPException) as exc_info:
@@ -73,7 +77,29 @@ async def test_forgot_password_unknown_email_raises_not_found(auth_service, auth
 
 
 @pytest.mark.asyncio
-async def test_verify_code_invalid_or_expired_raises_bad_request(auth_service, auth_repository_mock):
+async def test_forgot_password_success(auth_service, auth_repository_mock):
+    auth_repository_mock.get_user_by_email = AsyncMock(
+        return_value=AuthUserReponse(
+            _id="1",
+            fullname="Teste User",
+            email="teste@example.com",
+            role=Role.USER,
+            status="pending",
+        )
+    )
+    auth_repository_mock.store_password_reset_code = AsyncMock(
+        return_value={"message": "ok"}
+    )
+
+    result = await auth_service.forgot_password("teste@example.com")
+
+    assert result["message"] == "Código de recuperação enviado"
+
+
+@pytest.mark.asyncio
+async def test_verify_code_invalid_or_expired_raises_bad_request(
+    auth_service, auth_repository_mock
+):
     auth_repository_mock.get_user_by_email = AsyncMock(
         return_value=AuthUserReponse(
             _id="1",
@@ -92,6 +118,67 @@ async def test_verify_code_invalid_or_expired_raises_bad_request(auth_service, a
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail == "Código inválido ou expirado"
+
+
+@pytest.mark.asyncio
+async def test_verify_code_success(auth_service, auth_repository_mock):
+    auth_repository_mock.get_user_by_email = AsyncMock(
+        return_value=AuthUserReponse(
+            _id="1",
+            fullname="Teste User",
+            email="teste@example.com",
+            role=Role.USER,
+            status="pending",
+        )
+    )
+    auth_repository_mock.verify_password_reset_code = AsyncMock(
+        return_value={"success": True, "message": "Código verificado com sucesso"}
+    )
+
+    result = await auth_service.verify_code("teste@example.com", "123456")
+
+    assert result["message"] == "Código verificado com sucesso"
+
+
+@pytest.mark.asyncio
+async def test_reset_password_success(auth_service, auth_repository_mock):
+    auth_repository_mock.get_user_by_email = AsyncMock(
+        return_value=AuthUserReponse(
+            _id="1",
+            fullname="Teste User",
+            email="teste@example.com",
+            role=Role.USER,
+            status="pending",
+        )
+    )
+    auth_repository_mock.reset_password_with_code = AsyncMock(
+        return_value={"success": True, "message": "Senha redefinida com sucesso"}
+    )
+
+    result = await auth_service.reset_password(
+        "teste@example.com", "123456", "NovaSenha123!"
+    )
+
+    assert result["message"] == "Senha redefinida com sucesso"
+
+
+@pytest.mark.asyncio
+async def test_reset_password_rejects_weak_password(auth_service, auth_repository_mock):
+    auth_repository_mock.get_user_by_email = AsyncMock(
+        return_value=AuthUserReponse(
+            _id="1",
+            fullname="Teste User",
+            email="teste@example.com",
+            role=Role.USER,
+            status="pending",
+        )
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await auth_service.reset_password("teste@example.com", "123456", "fraca")
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Senha não atende aos requisitos de segurança"
 
 
 @pytest.mark.asyncio

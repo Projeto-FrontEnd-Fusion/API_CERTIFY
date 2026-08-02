@@ -1,7 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from api_certify.dependencies import get_auth_service, get_current_user
-from api_certify.models.auth_model import AuthUser, CompanyUser, UpdateUserSchema
+from api_certify.models.auth_model import (
+    AuthUser,
+    CompanyUser,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    UpdateUserSchema,
+    VerifyCodeRequest,
+)
 from api_certify.schemas.responses import SucessResponse
 from api_certify.service.auth_service import AuthService, AuthUserLogin
 
@@ -104,6 +111,52 @@ async def login_auth(
                 status_code=400,
                 detail=f"Erro no login: {error_message}",
             )
+
+
+@auth_routes.post("/forgot-password", response_model=SucessResponse, status_code=200)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    service: AuthService = Depends(get_auth_service),
+):
+    try:
+        result = await service.forgot_password(str(payload.email))
+        return SucessResponse(success=True, message=result["message"])
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
+
+@auth_routes.post("/verify-code", response_model=SucessResponse, status_code=200)
+async def verify_code(
+    payload: VerifyCodeRequest,
+    service: AuthService = Depends(get_auth_service),
+):
+    try:
+        result = await service.verify_code(str(payload.email), payload.code)
+        return SucessResponse(success=True, message=result["message"])
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
+
+@auth_routes.post("/reset-password", response_model=SucessResponse, status_code=200)
+async def reset_password(
+    payload: ResetPasswordRequest,
+    service: AuthService = Depends(get_auth_service),
+):
+    try:
+        result = await service.reset_password(
+            str(payload.email),
+            payload.code,
+            payload.new_password,
+        )
+        return SucessResponse(success=True, message=result["message"])
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise HTTPException(status_code=400, detail=str(err))
 
 
 @auth_routes.get("/me", response_model=SucessResponse, status_code=200)
