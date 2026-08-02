@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from api_certify.dependencies import get_event_service, get_current_user
+from api_certify.dependencies import get_event_service, get_current_user, require_role
 from api_certify.models.event_model import CreateEvent, UpdateEventSchema
 from api_certify.schemas.responses import SucessResponse
 from api_certify.service.event_service import EventService
@@ -16,7 +16,7 @@ event_routes = APIRouter(prefix="/events", tags=["Events"])
 async def create_event(
     payload: CreateEvent,
     service: EventService = Depends(get_event_service),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role("empresa")),
 ):
     try:
         event = await service.create_event(payload)
@@ -60,7 +60,7 @@ async def update_event(
     event_id: str,
     update_data: UpdateEventSchema,
     service: EventService = Depends(get_event_service),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role("empresa")),
 ):
     try:
         updated = await service.update_event(event_id, update_data)

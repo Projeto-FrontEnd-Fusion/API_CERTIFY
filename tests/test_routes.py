@@ -732,10 +732,12 @@ def admin_headers():
 def override_company_dependencies(
     auth_service_mock,
     certificate_service_mock,
+    event_service_mock,
     fake_company_user,
 ):
     app.dependency_overrides[get_auth_service] = lambda: auth_service_mock
     app.dependency_overrides[get_certificate_service] = lambda: certificate_service_mock
+    app.dependency_overrides[get_event_service] = lambda: event_service_mock
     app.dependency_overrides[get_current_user] = lambda: fake_company_user
 
     yield
@@ -793,16 +795,12 @@ async def admin_client(
 
 
 @pytest.mark.asyncio
-async def test_create_event_success(async_client, event_service_mock, auth_headers):
-
+async def test_create_event_forbidden_for_student(
+    async_client, event_service_mock, auth_headers
+):
     event_service_mock.create_event.return_value = {
         "_id": "evt_123",
         "name": "Imersão Dev Insights",
-        "institution": "Comunidade Frontend Fusion",
-        "workload": 9,
-        "description": "Evento de tecnologia",
-        "start_date": "2025-11-05T00:00:00",
-        "end_date": "2025-11-07T00:00:00",
     }
 
     response = await async_client.post(
@@ -818,6 +816,37 @@ async def test_create_event_success(async_client, event_service_mock, auth_heade
         headers=auth_headers,
     )
 
+    assert response.status_code == 403
+    body = response.json()
+    assert body["message"] == "Acesso negado. Permissão insuficiente para esta ação."
+
+
+@pytest.mark.asyncio
+async def test_create_event_success(company_client, event_service_mock, company_headers):
+
+    event_service_mock.create_event.return_value = {
+        "_id": "evt_123",
+        "name": "Imersão Dev Insights",
+        "institution": "Comunidade Frontend Fusion",
+        "workload": 9,
+        "description": "Evento de tecnologia",
+        "start_date": "2025-11-05T00:00:00",
+        "end_date": "2025-11-07T00:00:00",
+    }
+
+    response = await company_client.post(
+        "/api/v1/events",
+        json={
+            "name": "Imersão Dev Insights",
+            "institution": "Comunidade Frontend Fusion",
+            "workload": 9,
+            "description": "Evento de tecnologia",
+            "start_date": "2025-11-05T00:00:00",
+            "end_date": "2025-11-07T00:00:00",
+        },
+        headers=company_headers,
+    )
+
     assert response.status_code == 201
 
     body = response.json()
@@ -827,9 +856,9 @@ async def test_create_event_success(async_client, event_service_mock, auth_heade
 
 
 @pytest.mark.asyncio
-async def test_create_event_invalid_workload(async_client, auth_headers):
+async def test_create_event_invalid_workload(company_client, company_headers):
 
-    response = await async_client.post(
+    response = await company_client.post(
         "/api/v1/events",
         json={
             "name": "Evento Teste",
@@ -839,16 +868,16 @@ async def test_create_event_invalid_workload(async_client, auth_headers):
             "start_date": "2025-11-05T00:00:00",
             "end_date": "2025-11-07T00:00:00",
         },
-        headers=auth_headers,
+        headers=company_headers,
     )
 
     assert response.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_create_event_end_before_start(async_client, auth_headers):
+async def test_create_event_end_before_start(company_client, company_headers):
 
-    response = await async_client.post(
+    response = await company_client.post(
         "/api/v1/events",
         json={
             "name": "Evento Teste",
@@ -858,16 +887,16 @@ async def test_create_event_end_before_start(async_client, auth_headers):
             "start_date": "2025-11-07T00:00:00",
             "end_date": "2025-11-05T00:00:00",
         },
-        headers=auth_headers,
+        headers=company_headers,
     )
 
     assert response.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_create_event_name_too_short(async_client, auth_headers):
+async def test_create_event_name_too_short(company_client, company_headers):
 
-    response = await async_client.post(
+    response = await company_client.post(
         "/api/v1/events",
         json={
             "name": "AB",
@@ -877,7 +906,7 @@ async def test_create_event_name_too_short(async_client, auth_headers):
             "start_date": "2025-11-05T00:00:00",
             "end_date": "2025-11-07T00:00:00",
         },
-        headers=auth_headers,
+        headers=company_headers,
     )
 
     assert response.status_code == 422
@@ -935,7 +964,7 @@ async def test_get_event_not_found(async_client, event_service_mock):
 
 
 @pytest.mark.asyncio
-async def test_update_event_success(async_client, event_service_mock, auth_headers):
+async def test_update_event_success(company_client, event_service_mock, company_headers):
 
     event_service_mock.update_event.return_value = {
             "_id": "evt_123",
@@ -947,10 +976,10 @@ async def test_update_event_success(async_client, event_service_mock, auth_heade
             "end_date": "2025-11-07T00:00:00",
     }
 
-    response = await async_client.put(
+    response = await company_client.put(
         "/api/v1/events/evt_123",
         json={"name": "Evento Teste Atualizado"},
-        headers=auth_headers,
+        headers=company_headers,
     )
 
     assert response.status_code == 200
@@ -962,14 +991,14 @@ async def test_update_event_success(async_client, event_service_mock, auth_heade
 
 
 @pytest.mark.asyncio
-async def test_update_event_not_found(async_client, event_service_mock, auth_headers):
+async def test_update_event_not_found(company_client, event_service_mock, company_headers):
 
     event_service_mock.update_event.side_effect = Exception("Evento não encontrado")
 
-    response = await async_client.put(
+    response = await company_client.put(
         "/api/v1/events/evt_123",
         json={"name": "Evento Teste Atualizado"},
-        headers=auth_headers,
+        headers=company_headers,
     )
 
     assert response.status_code == 404
@@ -977,7 +1006,7 @@ async def test_update_event_not_found(async_client, event_service_mock, auth_hea
 
 @pytest.mark.asyncio
 async def test_update_event_negative_workload(
-    async_client, event_service_mock, auth_headers
+    company_client, event_service_mock, company_headers
 ):
 
     event_service_mock.update_event.return_value = {
@@ -986,20 +1015,20 @@ async def test_update_event_negative_workload(
             "workload": 5,
     }
 
-    response = await async_client.put(
+    response = await company_client.put(
         "/api/v1/events/evt_123",
         json={
             "name": "Evento Teste Atualizado",
             "workload": 0,
         },
-        headers=auth_headers,
+        headers=company_headers,
     )
 
     assert response.status_code == 422 # Alerta de Unprocessable Content 
 
 @pytest.mark.asyncio
 async def test_update_event_invalid_dates(
-    async_client, event_service_mock, auth_headers
+    company_client, event_service_mock, company_headers
 ):
 
     event_service_mock.update_event.return_value = {
@@ -1011,21 +1040,21 @@ async def test_update_event_invalid_dates(
 
     }
 
-    response = await async_client.put(
+    response = await company_client.put(
         "/api/v1/events/evt_123",
         json={
             "name": "Evento Teste Atualizado",
             "start_date": "2025-11-05T00:00:00",
             "end_date": "2025-11-04T00:00:00"
         },
-        headers=auth_headers,
+        headers=company_headers,
     )
 
     assert response.status_code == 422 # Alerta de Unprocessable Content 
 
 @pytest.mark.asyncio
 async def test_update_event_single_date(
-    async_client, event_service_mock, auth_headers
+    company_client, event_service_mock, company_headers
 ):
 
     event_service_mock.update_event.return_value = {
@@ -1037,13 +1066,13 @@ async def test_update_event_single_date(
 
     }
 
-    response = await async_client.put(
+    response = await company_client.put(
         "/api/v1/events/evt_123",
         json={
             "name": "Evento Teste Atualizado",
             "end_date": "2025-11-04T00:00:00"
         },
-        headers=auth_headers,
+        headers=company_headers,
     )
 
     assert response.status_code == 422 # Alerta de Unprocessable Content 
