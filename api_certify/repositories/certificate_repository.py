@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from bson.objectid import ObjectId
 from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorDatabase
+from pymongo import ReturnDocument
 
 from api_certify.models.certificate_model import CertificateInDb, CreateCertificate
 
@@ -297,6 +298,19 @@ class CertificateRepository:
         existingCertificate["_id"] = str(existingCertificate["_id"])
 
         return CertificateInDb(**existingCertificate)
+
+    async def update_status(self, certificate_id: str, status: str) -> CertificateInDb | None:
+        updated_doc = await self.certificate_collection.find_one_and_update(
+            {"_id": ObjectId(certificate_id)},
+            {"$set": {"status": status}},
+            return_document=ReturnDocument.AFTER,
+        )
+
+        if not updated_doc:
+            return None
+
+        updated_doc["_id"] = str(updated_doc["_id"])
+        return CertificateInDb(**updated_doc)
 
     # ========================================
     # Buscar certificado por access_key
