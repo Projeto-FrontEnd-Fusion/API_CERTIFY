@@ -277,6 +277,41 @@ async def test_get_certificates_by_issuer_success(
     assert result["items"][0]["id"] == "cert_abc"
 
 
+@pytest.mark.asyncio
+async def test_get_certificates_by_issuer_returns_empty_when_none_found(
+    certificate_service,
+    certificate_repository_mock,
+):
+    certificate_repository_mock.get_certificates_by_issuer = AsyncMock(
+        return_value={
+            "items": [],
+            "total": 0,
+            "page": 1,
+            "limit": 20,
+            "total_pages": 0,
+        }
+    )
+
+    result = await certificate_service.get_certificates_by_issuer(
+        empresa_id="company123",
+        page=1,
+        limit=20,
+    )
+
+    certificate_repository_mock.get_certificates_by_issuer.assert_awaited_once_with(
+        empresa_id="company123",
+        skip=0,
+        limit=20,
+        page=1,
+        event_id=None,
+        status=None,
+    )
+
+    assert result["items"] == []
+    assert result["total"] == 0
+    assert result["total_pages"] == 0
+
+
 # -------------------------
 # Get certificate by ID
 # -------------------------
