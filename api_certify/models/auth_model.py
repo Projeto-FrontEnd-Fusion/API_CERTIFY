@@ -79,12 +79,24 @@ class ForgotPasswordRequest(BaseModel):
 
 class VerifyCodeRequest(BaseModel):
     email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
-    code: str = Field(..., min_length=6, max_length=6, pattern=r'^\d{6}$')
+    code: str = Field(
+        ...,
+        min_length=6,
+        max_length=6,
+        pattern=r"^\d{6}$",
+        description="Código de verificação",
+    )
 
 
 class ResetPasswordRequest(BaseModel):
     email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
-    code: str = Field(..., min_length=6, max_length=6, pattern=r'^\d{6}$')
+    code: str = Field(
+        ...,
+        min_length=6,
+        max_length=6,
+        pattern=r"^\d{6}$",
+        description="Código de verificação",
+    )
     new_password: str = Field(
         ...,
         max_length=PASSWORD_MAX,
