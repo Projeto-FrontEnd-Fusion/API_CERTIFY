@@ -1,7 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from api_certify.dependencies import get_certificate_service, get_current_user
-from api_certify.models.certificate_model import CreateCertificate
+from api_certify.dependencies import (
+    get_certificate_service,
+    get_current_user,
+    require_role,
+)
+from api_certify.models.certificate_model import (
+    BatchCertificateRequest,
+    CreateCertificate,
+    Status,
+)
 from api_certify.schemas.responses import SucessResponse
 from api_certify.service.certificate_service import CertificateService
 
@@ -33,6 +41,33 @@ async def validate_certificate(
 
 
 # ================================
+# Criar certificados em lote (PROTEGIDA)
+# ================================
+@certificate_routes.post(
+    "/batch",
+    response_model=SucessResponse,
+    status_code=201,
+)
+async def create_batch_certificates(
+    payload: BatchCertificateRequest,
+    service: CertificateService = Depends(get_certificate_service),
+    current_user: dict = Depends(require_role("empresa")),
+):
+    summary = await service.create_batch_certificates(payload)
+
+    if hasattr(summary, "model_dump"):
+        response_data = summary.model_dump()
+    else:
+        response_data = summary
+
+    return SucessResponse(
+        success=True,
+        message="Emissão em lote concluída.",
+        data=response_data,
+    )
+
+
+# ================================
 # Criar certificado (PROTEGIDA)
 # ================================
 @certificate_routes.post(
@@ -44,9 +79,13 @@ async def request_certificate(
     user_id: str,
     payload: CreateCertificate,
     service: CertificateService = Depends(get_certificate_service),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role("empresa")),
 ):
-    certificate = await service.create_participant_certificate(user_id, payload)
+    certificate = await service.create_participant_certificate(
+        user_id,
+        payload,
+        issuer_id=current_user.get("sub"),
+    )
 
     return SucessResponse(
         success=True,
@@ -79,6 +118,15 @@ async def get_many_certificate(
     service: CertificateService = Depends(get_certificate_service),
     current_user: dict = Depends(get_current_user),
 ):
+    role = current_user.get("role")
+    token_user_id = current_user.get("sub")
+
+    if role == "user" and token_user_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Acesso negado. Permissão insuficiente para esta ação.",
+        )
+
     certificates = await service.get_many_certificates(
         user_id=user_id,
         page=page,
@@ -93,8 +141,87 @@ async def get_many_certificate(
 
 
 # ================================
+# Listar certificados emitidos por empresa (PROTEGIDA)
+# ================================
+@certificate_routes.get(
+    "/issuer/{empresa_id}",
+    response_model=SucessResponse,
+    status_code=200,
+)
+async def get_certificates_by_issuer(
+    empresa_id: str,
+    page: int = Query(
+        1,
+        ge=1,
+        description="Número da página",
+    ),
+    limit: int = Query(
+        20,
+        ge=1,
+        le=100,
+        description="Quantidade máxima de registros por página",
+    ),
+    event_id: str | None = Query(
+        None,
+        description="Filtrar por event_id",
+    ),
+    status: Status | None = Query(
+        None,
+        description='Filtrar por status',
+    ),
+    service: CertificateService = Depends(get_certificate_service),
+    current_user: dict = Depends(require_role("empresa")),
+):
+    role = current_user.get("role")
+    token_user_id = current_user.get("sub")
+
+    if role == "empresa" and token_user_id != empresa_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Acesso negado. Permissão insuficiente para esta ação.",
+        )
+
+    certificates = await service.get_certificates_by_issuer(
+        empresa_id=empresa_id,
+        page=page,
+        limit=limit,
+        event_id=event_id,
+        status=status.value if status else None,
+    )
+
+    return SucessResponse(
+        success=True,
+        message="Certificados obtidos com sucesso.",
+        data=certificates,
+    )
+
+
+# ================================
 # Buscar certificado por ID (PROTEGIDA)
 # ================================
+@certificate_routes.patch(
+    "/{item_id}/status",
+    response_model=SucessResponse,
+    status_code=200,
+)
+async def update_certificate_status(
+    item_id: str,
+    status: str = Query(
+        ...,
+        description="Status do certificado: active ou inactive",
+    ),
+    service: CertificateService = Depends(get_certificate_service),
+    current_user: dict = Depends(require_role("empresa")),
+):
+    certificate = await service.update_certificate_status(item_id, status)
+
+    return SucessResponse(
+        success=True,
+        message="Status do certificado atualizado com sucesso.",
+        data={"certificate": certificate},
+    )
+
+
 @certificate_routes.get(
     "/{item_id}",
     response_model=SucessResponse,
