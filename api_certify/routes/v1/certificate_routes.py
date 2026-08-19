@@ -199,6 +199,29 @@ async def get_certificates_by_issuer(
 # ================================
 # Buscar certificado por ID (PROTEGIDA)
 # ================================
+@certificate_routes.patch(
+    "/{item_id}/status",
+    response_model=SucessResponse,
+    status_code=200,
+)
+async def update_certificate_status(
+    item_id: str,
+    status: str = Query(
+        ...,
+        description="Status do certificado: active ou inactive",
+    ),
+    service: CertificateService = Depends(get_certificate_service),
+    current_user: dict = Depends(require_role("empresa")),
+):
+    certificate = await service.update_certificate_status(item_id, status)
+
+    return SucessResponse(
+        success=True,
+        message="Status do certificado atualizado com sucesso.",
+        data={"certificate": certificate},
+    )
+
+
 @certificate_routes.get(
     "/{item_id}",
     response_model=SucessResponse,

@@ -311,6 +311,26 @@ async def test_get_certificate_by_id_not_found(
         await certificate_service.get_certificate_by_id("invalid-id")
 
 
+@pytest.mark.asyncio
+async def test_update_certificate_status_success(
+    certificate_service,
+    certificate_repository_mock,
+    certificate_mock,
+):
+    certificate_repository_mock.update_status = AsyncMock(return_value=certificate_mock)
+
+    result = await certificate_service.update_certificate_status(
+        certificate_id="cert-1",
+        status="inactive",
+    )
+
+    certificate_repository_mock.update_status.assert_awaited_once_with(
+        certificate_id="cert-1",
+        status="inactive",
+    )
+    assert result.status == "available"
+
+
 # -------------------------
 # Validate certificate
 # -------------------------

@@ -211,6 +211,40 @@ class CertificateService:
             status=status,
         )
 
+    async def update_certificate_status(
+        self,
+        certificate_id: str,
+        status: str,
+    ) -> CertificateInDb:
+        normalized_status = self._normalize_status(status)
+
+        certificate = await self.certificate_repository.update_status(
+            certificate_id=certificate_id,
+            status=normalized_status,
+        )
+
+        if not certificate:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Certificado não encontrado.",
+            )
+
+        return certificate
+
+    def _normalize_status(self, status: str) -> str:
+        normalized_status = (status or "").strip().lower()
+
+        if normalized_status in {"active", "available"}:
+            return "available"
+
+        if normalized_status in {"inactive", "disabled"}:
+            return "inactive"
+
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Status inválido. Use 'active' ou 'inactive'.",
+        )
+
     async def validate_certificate(
         self, access_key: str
     ) -> CertificateValidationResponse:
