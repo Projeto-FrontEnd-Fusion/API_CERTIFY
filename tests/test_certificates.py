@@ -470,3 +470,44 @@ async def test_create_batch_certificates_ignores_duplicates(
     assert result.criados == 1
     assert result.duplicados_ignorados == 1
     assert result.erros == 0
+
+
+@pytest.mark.asyncio
+async def test_create_batch_certificates_counts_errors_for_failed_participants(
+    certificate_service,
+    certificate_repository_mock,
+    auth_repository_mock,
+    event_repository_mock,
+    certificate_mock,
+):
+    event_repository_mock.find_by_id = AsyncMock(
+        return_value={
+            "id": "event-1",
+            "name": "Evento Teste",
+            "institution": "Instituto Teste",
+            "workload": 10,
+            "description": "Descrição do evento",
+            "start_date": datetime(2026, 1, 1),
+            "end_date": datetime(2026, 1, 2),
+            "created_at": datetime(2026, 1, 1),
+        }
+    )
+    certificate_repository_mock.find_existing_certificate_by_email = AsyncMock(
+        return_value=None
+    )
+    certificate_repository_mock.create = AsyncMock(side_effect=Exception("boom"))
+    auth_repository_mock.find_by_email = AsyncMock(return_value=None)
+
+    result = await certificate_service.create_batch_certificates(
+        {
+            "event_id": "event-1",
+            "participants": [
+                {"fullname": "Teste User", "email": "teste@example.com"},
+                {"fullname": "Outro User", "email": "outro@example.com"},
+            ],
+        }
+    )
+
+    assert result.criados == 0
+    assert result.duplicados_ignorados == 0
+    assert result.erros == 2
