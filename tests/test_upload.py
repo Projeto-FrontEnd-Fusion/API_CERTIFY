@@ -11,12 +11,14 @@ from api_certify.dependencies import get_current_user
 
 @pytest.fixture
 def fake_current_user():
-    return {"sub": "user123", "email": "test@email.com"}
+    return {"sub": "user123", "email": "test@email.com", "role": "empresa"}
 
 
 @pytest.fixture
 def auth_headers():
-    token = create_access_token({"sub": "user123", "email": "test@email.com"})
+    token = create_access_token(
+        {"sub": "user123", "email": "test@email.com", "role": "empresa"}
+    )
     return {"Authorization": f"Bearer {token}"}
 
 

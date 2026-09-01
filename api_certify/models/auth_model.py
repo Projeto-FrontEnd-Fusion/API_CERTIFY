@@ -1,37 +1,45 @@
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from datetime import datetime
-from typing import Optional
 from enum import Enum
+from typing import Optional
 
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 FULLNAME_MAX = 100
 FULLNAME_MIN = 6
 PASSWORD_MAX = 100
 PASSWORD_MIN = 8
 
-DESC_FULLNAME = 'Nome completo do usuário para identificação. Deve conter nome e sobrenome'
-DESC_EMAIL = 'Endereço de email válido utilizado para login e comunicação'
-DESC_PASSWORD = 'Senha de acesso segura. Deve conter letras, números e caracteres especiais'
-DESC_ROLE = 'Nível de acesso do usuário no sistema. Define permissões e funcionalidades disponíveis'
-DESC_STATUS = 'Status do usuário no sistema. Indica se possui certificado disponível ou outros estados'
-DESC_CREATED_AT = 'Data e hora de criação do registro no sistema. Preenchido automaticamente'
-DESC_UPDATED_AT = 'Data e hora da última atualização do registro. Atualizado automaticamente'
-DESC_USER_ID = 'Identificador único do usuário no banco de dados (MongoDB ObjectId)'
+DESC_FULLNAME = (
+    "Nome completo do usuário para identificação. Deve conter nome e sobrenome"
+)
+DESC_EMAIL = "Endereço de email válido utilizado para login e comunicação"
+DESC_PASSWORD = (
+    "Senha de acesso segura. Deve conter letras, números e caracteres especiais"
+)
+DESC_ROLE = "Nível de acesso do usuário no sistema. Define permissões e funcionalidades disponíveis"
+DESC_STATUS = "Status do usuário no sistema. Indica se possui certificado disponível ou outros estados"
+DESC_CREATED_AT = (
+    "Data e hora de criação do registro no sistema. Preenchido automaticamente"
+)
+DESC_UPDATED_AT = (
+    "Data e hora da última atualização do registro. Atualizado automaticamente"
+)
+DESC_USER_ID = "Identificador único do usuário no banco de dados (MongoDB ObjectId)"
 
-EXAMPLE_FULLNAME = 'João Silva Santos'
-EXAMPLE_EMAIL = 'usuario@empresa.com'
-EXAMPLE_PASSWORD = 'SenhaSegura123!'
-EXAMPLE_USER_ID = '507f1f77bcf86cd799439011'
-EXAMPLE_DATETIME = '2024-01-15T10:30:00.000Z'
-EXAMPLE_STATUS = 'available'
-DESC_PHONE = 'Número de celular do usuário'
-EXAMPLE_PHONE = '(85) 99124-8874'
+EXAMPLE_FULLNAME = "João Silva Santos"
+EXAMPLE_EMAIL = "usuario@empresa.com"
+EXAMPLE_PASSWORD = "SenhaSegura123!"
+EXAMPLE_USER_ID = "507f1f77bcf86cd799439011"
+EXAMPLE_DATETIME = "2024-01-15T10:30:00.000Z"
+EXAMPLE_STATUS = "available"
+DESC_PHONE = "Número de celular do usuário"
+EXAMPLE_PHONE = "(85) 99124-8874"
 
 
 class Role(str, Enum):
-    ADMIN = 'admin'
-    USER = 'user'
-    EMPRESA = 'empresa'
+    ADMIN = "admin"
+    USER = "user"
+    EMPRESA = "empresa"
 
 
 class AuthUser(BaseModel):
@@ -40,88 +48,106 @@ class AuthUser(BaseModel):
         max_length=FULLNAME_MAX,
         min_length=FULLNAME_MIN,
         description=DESC_FULLNAME,
-        example=EXAMPLE_FULLNAME
+        example=EXAMPLE_FULLNAME,
     )
-    email: EmailStr = Field(
-        ..., 
-        description=DESC_EMAIL,
-        example=EXAMPLE_EMAIL
-    )
+    email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
     password: str = Field(
         ...,
         max_length=PASSWORD_MAX,
         min_length=PASSWORD_MIN,
         description=DESC_PASSWORD,
-        example=EXAMPLE_PASSWORD
+        example=EXAMPLE_PASSWORD,
     )
     role: Role = Field(
-        ..., 
+        default=Role.USER,
         description=DESC_ROLE,
-        example=Role.USER
+        example=Role.USER,
     )
     cpf: Optional[str] = Field(
         None,
-        description='CPF do usuário',
-        example='12345678900'
+        description="CPF do usuário",
+        example="12345678900",
     )
     cnpj: Optional[str] = Field(
         None,
-        description='CNPJ da empresa',
-        example='12345678000190'
+        description="CNPJ da empresa",
+        example="12345678000190",
     )
     organization_name: Optional[str] = Field(
         None,
-        alias='organizationName',
-        description='Nome da organização/empresa',
-        example='Comunidade Frontend Fusion'
+        alias="organizationName",
+        description="Nome da organização/empresa",
+        example="Comunidade Frontend Fusion",
     )
     occupation: Optional[str] = Field(
         None,
-        description='Profissão/cargo do usuário',
-        example='Desenvolvedor'
+        description="Profissão/cargo do usuário",
+        example="Desenvolvedor",
     )
     phone: Optional[str] = Field(
         None,
         description=DESC_PHONE,
-        example=EXAMPLE_PHONE
+        example=EXAMPLE_PHONE,
     )
     status: Optional[str] = Field(
         None,
         description=DESC_STATUS,
-        example=EXAMPLE_STATUS
+        example=EXAMPLE_STATUS,
     )
     created_at: Optional[datetime] = Field(
         None,
-        description=DESC_CREATED_AT
+        description=DESC_CREATED_AT,
     )
     updated_at: Optional[datetime] = Field(
         None,
-        description=DESC_UPDATED_AT
+        description=DESC_UPDATED_AT,
     )
-
-
 class AuthUserLogin(BaseModel):
-    email: EmailStr = Field(
-        ..., 
-        description=DESC_EMAIL,
-        example=EXAMPLE_EMAIL
-    )
+    email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
     password: str = Field(
         ...,
         max_length=PASSWORD_MAX,
         min_length=PASSWORD_MIN,
         description=DESC_PASSWORD,
-        example=EXAMPLE_PASSWORD
+        example=EXAMPLE_PASSWORD,
+    )
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
+
+
+class VerifyCodeRequest(BaseModel):
+    email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
+    code: str = Field(
+        ...,
+        min_length=6,
+        max_length=6,
+        pattern=r"^\d{6}$",
+        description="Código de verificação",
+    )
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
+    code: str = Field(
+        ...,
+        min_length=6,
+        max_length=6,
+        pattern=r"^\d{6}$",
+        description="Código de verificação",
+    )
+    new_password: str = Field(
+        ...,
+        max_length=PASSWORD_MAX,
+        min_length=PASSWORD_MIN,
+        description=DESC_PASSWORD,
+        example=EXAMPLE_PASSWORD,
     )
 
 
 class AuthUserInDb(AuthUser):
-    id: str = Field(
-        ..., 
-        alias='_id',
-        description=DESC_USER_ID,
-        example=EXAMPLE_USER_ID
-    )
+    id: str = Field(..., alias="_id", description=DESC_USER_ID, example=EXAMPLE_USER_ID)
     model_config = ConfigDict(use_enum_values=True, populate_by_name=True)
 
 
@@ -146,41 +172,57 @@ class UpdateUserSchema(BaseModel):
 
 
 class AuthUserReponse(BaseModel):
-    id: str = Field(
-        ..., 
-        alias='_id',
-        description=DESC_USER_ID,
-        example=EXAMPLE_USER_ID
-    )
+    id: str = Field(..., alias="_id", description=DESC_USER_ID, example=EXAMPLE_USER_ID)
     fullname: str = Field(
         ...,
         max_length=FULLNAME_MAX,
         min_length=FULLNAME_MIN,
         description=DESC_FULLNAME,
-        example=EXAMPLE_FULLNAME
+        example=EXAMPLE_FULLNAME,
     )
-    email: EmailStr = Field(
-        ..., 
-        description=DESC_EMAIL,
-        example=EXAMPLE_EMAIL
-    )
-    role: Role = Field(
-        ..., 
-        description=DESC_ROLE,
-        example=Role.USER
-    )
-    status: Optional[str] = Field(
-        None,
-        description=DESC_STATUS,
-        example=EXAMPLE_STATUS
-    )
+    email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
+    role: Role = Field(..., description=DESC_ROLE, example=Role.USER)
+    status: Optional[str] = Field(None, description=DESC_STATUS, example=EXAMPLE_STATUS)
     created_at: Optional[datetime] = Field(
-        None,
-        description=DESC_CREATED_AT,
-        example=EXAMPLE_DATETIME
+        None, description=DESC_CREATED_AT, example=EXAMPLE_DATETIME
     )
     updated_at: Optional[datetime] = Field(
-        None,
-        description=DESC_UPDATED_AT,
-        example=EXAMPLE_DATETIME
+        None, description=DESC_UPDATED_AT, example=EXAMPLE_DATETIME
     )
+
+
+# Company-specific models
+DESC_COMPANY_NAME = "Razão social da empresa/instituição"
+EXAMPLE_COMPANY_NAME = "Empresa Exemplo Ltda"
+DESC_CNPJ = "CNPJ válido da empresa"
+EXAMPLE_CNPJ = "12345678000195"
+
+
+class CompanyUser(BaseModel):
+    razao_social: str = Field(
+        ...,
+        min_length=3,
+        max_length=200,
+        description=DESC_COMPANY_NAME,
+        example=EXAMPLE_COMPANY_NAME,
+    )
+    cnpj: str = Field(..., description=DESC_CNPJ, example=EXAMPLE_CNPJ)
+    email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
+    password: str = Field(
+        ...,
+        max_length=PASSWORD_MAX,
+        min_length=PASSWORD_MIN,
+        description=DESC_PASSWORD,
+        example=EXAMPLE_PASSWORD,
+    )
+    phone: Optional[str] = Field(None, description=DESC_PHONE, example=EXAMPLE_PHONE)
+    role: Role = Field(default=Role.EMPRESA)
+
+
+class CompanyResponse(BaseModel):
+    id: str = Field(..., alias="_id")
+    razao_social: str
+    cnpj: str
+    email: EmailStr
+    phone: Optional[str] = None
+    role: Role = Field(default=Role.EMPRESA)

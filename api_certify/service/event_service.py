@@ -1,5 +1,5 @@
 from api_certify.repositories.event_repository import EventRepository
-from api_certify.models.event_model import CreateEvent, EventInDb
+from api_certify.models.event_model import CreateEvent, EventInDb, UpdateEventSchema
 from fastapi import HTTPException, status
 
 
@@ -34,3 +34,6 @@ class EventService:
             )
 
         await self.event_repository.delete(event_id)
+
+    async def update_event(self, event_id: str, update_data: UpdateEventSchema) -> EventInDb | None:
+        return await self.event_repository.update(event_id, update_data)
