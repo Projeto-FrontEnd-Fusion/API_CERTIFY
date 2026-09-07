@@ -2,7 +2,30 @@ import pytest
 from mongomock_motor import AsyncMongoMockClient
 
 from api_certify.repositories.auth_repository import AuthRepository
-from api_certify.models.auth_model import CompanyUser
+from api_certify.models.auth_model import AuthUserLogin, CompanyUser
+
+
+@pytest.mark.asyncio
+async def test_company_can_login_after_signup():
+    client = AsyncMongoMockClient()
+    repo = AuthRepository(client["CERTIFY"])
+    await repo.create_company(
+        CompanyUser(
+            razao_social="Empresa Teste Ltda",
+            cnpj="12345678000195",
+            email="contato@empresa.com",
+            password="SenhaSegura123!",
+        )
+    )
+    company = await repo.login(
+        AuthUserLogin(
+            email="contato@empresa.com",
+            password="SenhaSegura123!",
+        )
+    )
+    assert company.role == "empresa"
+    assert company.razao_social == "Empresa Teste Ltda"
+    assert company.cnpj == "12345678000195"
 
 
 @pytest.mark.asyncio
