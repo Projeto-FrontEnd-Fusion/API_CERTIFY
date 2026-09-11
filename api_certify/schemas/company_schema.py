@@ -3,15 +3,21 @@ import re
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 PASSWORD_MIN = 8
+CNPJ_LENGTH = 14
+MIN_REMAINDER = 2
 
 
 def validar_cnpj(cnpj: str) -> str:
-    cnpj = re.sub(r"\D", "", cnpj)
+    if re.fullmatch(r"\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}", cnpj):
+        cnpj = re.sub(r"\D", "", cnpj)
 
-    if len(cnpj) != 14:
-        raise ValueError("CNPJ deve conter 14 dígitos")
+    if len(cnpj) != CNPJ_LENGTH:
+        raise ValueError("CNPJ deve conter 14 posições")
 
-    if cnpj == cnpj[0] * 14:
+    if not re.fullmatch(r"[A-Z0-9]{12}\d{2}", cnpj):
+        raise ValueError("CNPJ inválido")
+
+    if cnpj == cnpj[0] * CNPJ_LENGTH:
         raise ValueError("CNPJ inválido")
 
     if not _validar_digitos_verificadores(cnpj):
@@ -22,9 +28,12 @@ def validar_cnpj(cnpj: str) -> str:
 
 def _validar_digitos_verificadores(cnpj: str) -> bool:
     def calcular_digito(base, pesos):
-        soma = sum(int(d) * p for d, p in zip(base, pesos))
+        soma = sum(
+            (ord(caractere) - 48) * peso
+            for caractere, peso in zip(base, pesos)
+        )
         resto = soma % 11
-        return "0" if resto < 2 else str(11 - resto)
+        return "0" if resto < MIN_REMAINDER else str(11 - resto)
 
     base = cnpj[:12]
 

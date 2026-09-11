@@ -137,8 +137,8 @@ class UpdateUserSchema(BaseModel):
 
 class AuthUserReponse(BaseModel):
     id: str = Field(..., alias="_id", description=DESC_USER_ID, example=EXAMPLE_USER_ID)
-    fullname: str = Field(
-        ...,
+    fullname: Optional[str] = Field(
+        None,
         max_length=FULLNAME_MAX,
         min_length=FULLNAME_MIN,
         description=DESC_FULLNAME,
@@ -146,6 +146,8 @@ class AuthUserReponse(BaseModel):
     )
     email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
     role: Role = Field(..., description=DESC_ROLE, example=Role.USER)
+    razao_social: Optional[str] = None
+    cnpj: Optional[str] = None
     status: Optional[str] = Field(None, description=DESC_STATUS, example=EXAMPLE_STATUS)
     created_at: Optional[datetime] = Field(
         None, description=DESC_CREATED_AT, example=EXAMPLE_DATETIME
