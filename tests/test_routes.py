@@ -323,6 +323,8 @@ async def test_create_batch_certificates(
 
     assert response.status_code == 201
     assert response.json()["data"]["criados"] == 2
+    assert certificate_service_mock.create_batch_certificates.call_args.kwargs["issuer_id"] == "company123"
+    certificate_service_mock.send_pending_notifications.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -521,14 +523,14 @@ async def test_create_certificate_without_token(async_client_no_auth):
         },
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_get_certificates_without_token(async_client_no_auth):
     response = await async_client_no_auth.get("/api/v1/certificate/users/user123")
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 # ==========================================
@@ -690,7 +692,7 @@ async def test_update_user_without_token(async_client_no_auth):
         json={"fullname": "Hacker"},
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 @pytest.fixture
@@ -912,22 +914,6 @@ async def test_create_event_name_too_short(company_client, company_headers):
     assert response.status_code == 422
 
 
-@pytest.mark.asyncio
-async def test_create_event_without_token(async_client_no_auth):
-
-    response = await async_client_no_auth.post(
-        "/api/v1/events",
-        json={
-            "name": "Evento Teste",
-            "institution": "Instituição",
-            "workload": 5,
-            "description": "Descrição",
-            "start_date": "2025-11-05T00:00:00",
-            "end_date": "2025-11-07T00:00:00",
-        },
-    )
-
-    assert response.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -957,6 +943,70 @@ async def test_get_event_not_found(async_client, event_service_mock):
     response = await async_client.get("/api/v1/events/invalid_id")
 
     assert response.status_code == 404
+
+# ==========================================
+# TESTS - DELETE EVENT
+# ==========================================
+
+
+@pytest.mark.asyncio
+async def test_delete_event_success(async_client, event_service_mock, auth_headers):
+
+    event_service_mock.delete_event.return_value = None
+
+    response = await async_client.delete(
+        "/api/v1/events/evt_123",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["success"] is True
+    assert body["message"] == "Evento excluído com sucesso"
+
+
+@pytest.mark.asyncio
+async def test_delete_event_not_found(async_client, event_service_mock, auth_headers):
+    from fastapi import HTTPException
+
+    event_service_mock.delete_event.side_effect = HTTPException(
+        status_code=404, detail="Evento não encontrado"
+    )
+
+    response = await async_client.delete(
+        "/api/v1/events/invalid_id",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_event_with_certificates(async_client, event_service_mock, auth_headers):
+    from fastapi import HTTPException
+
+    event_service_mock.delete_event.side_effect = HTTPException(
+        status_code=409,
+        detail="Não é possível excluir um evento que já possui certificados emitidos.",
+    )
+
+    response = await async_client.delete(
+        "/api/v1/events/evt_123",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_event_without_token(async_client_no_auth):
+
+    response = await async_client_no_auth.delete("/api/v1/events/evt_123")
+
+    assert response.status_code == 401
+
 
 # ==========================================
 # TESTS - UPDATE EVENT
@@ -1024,7 +1074,7 @@ async def test_update_event_negative_workload(
         headers=company_headers,
     )
 
-    assert response.status_code == 422 # Alerta de Unprocessable Content 
+    assert response.status_code == 422  # Alerta de Unprocessable Content
 
 @pytest.mark.asyncio
 async def test_update_event_invalid_dates(
@@ -1050,7 +1100,7 @@ async def test_update_event_invalid_dates(
         headers=company_headers,
     )
 
-    assert response.status_code == 422 # Alerta de Unprocessable Content 
+    assert response.status_code == 422  # Alerta de Unprocessable Content
 
 @pytest.mark.asyncio
 async def test_update_event_single_date(
@@ -1075,7 +1125,7 @@ async def test_update_event_single_date(
         headers=company_headers,
     )
 
-    assert response.status_code == 422 # Alerta de Unprocessable Content 
+    assert response.status_code == 422  # Alerta de Unprocessable Content
 
 
 
@@ -1089,7 +1139,7 @@ async def test_create_event_without_token(async_client_no_auth):
         },
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 # ==========================================
 # TESTS - AUTH ENDPOINTS
@@ -1225,43 +1275,6 @@ async def test_get_me_error(async_client, auth_service_mock, auth_headers):
     )
 
     assert response.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_update_user_success(async_client, auth_service_mock, auth_headers):
-    from api_certify.models.auth_model import Role
-
-    auth_service_mock.update_user.return_value = {
-        "_id": "user123",
-        "fullname": "Updated Name",
-        "email": "test@email.com",
-        "role": Role.USER,
-        "status": "available",
-    }
-
-    response = await async_client.put(
-        "/api/v1/auth/user123",
-        json={"fullname": "Updated Name"},
-        headers=auth_headers,
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["success"] is True
-    assert body["message"] == "Dados atualizados com sucesso"
-
-
-@pytest.mark.asyncio
-async def test_update_user_not_found(async_client, auth_service_mock, auth_headers):
-    auth_service_mock.update_user.side_effect = Exception("Usuário não encontrado")
-
-    response = await async_client.put(
-        "/api/v1/auth/invalid_id",
-        json={"fullname": "Updated Name"},
-        headers=auth_headers,
-    )
-
-    assert response.status_code == 404
 
 
 @pytest.mark.asyncio

@@ -32,12 +32,14 @@ EXAMPLE_PASSWORD = "SenhaSegura123!"
 EXAMPLE_USER_ID = "507f1f77bcf86cd799439011"
 EXAMPLE_DATETIME = "2024-01-15T10:30:00.000Z"
 EXAMPLE_STATUS = "available"
+DESC_PHONE = "Número de celular do usuário"
+EXAMPLE_PHONE = "(85) 99124-8874"
 
 
 class Role(str, Enum):
     ADMIN = "admin"
-    EMPRESA = "empresa"
     USER = "user"
+    EMPRESA = "empresa"
 
 
 class AuthUser(BaseModel):
@@ -56,12 +58,50 @@ class AuthUser(BaseModel):
         description=DESC_PASSWORD,
         example=EXAMPLE_PASSWORD,
     )
-    role: Role = Field(default=Role.USER)
-    status: Optional[str] = Field(None, description=DESC_STATUS, example=EXAMPLE_STATUS)
-    created_at: Optional[datetime] = Field(None, description=DESC_CREATED_AT)
-    updated_at: Optional[datetime] = Field(None, description=DESC_UPDATED_AT)
-
-
+    role: Role = Field(
+        default=Role.USER,
+        description=DESC_ROLE,
+        example=Role.USER,
+    )
+    cpf: Optional[str] = Field(
+        None,
+        description="CPF do usuário",
+        example="12345678900",
+    )
+    cnpj: Optional[str] = Field(
+        None,
+        description="CNPJ da empresa",
+        example="12345678000190",
+    )
+    organization_name: Optional[str] = Field(
+        None,
+        alias="organizationName",
+        description="Nome da organização/empresa",
+        example="Comunidade Frontend Fusion",
+    )
+    occupation: Optional[str] = Field(
+        None,
+        description="Profissão/cargo do usuário",
+        example="Desenvolvedor",
+    )
+    phone: Optional[str] = Field(
+        None,
+        description=DESC_PHONE,
+        example=EXAMPLE_PHONE,
+    )
+    status: Optional[str] = Field(
+        None,
+        description=DESC_STATUS,
+        example=EXAMPLE_STATUS,
+    )
+    created_at: Optional[datetime] = Field(
+        None,
+        description=DESC_CREATED_AT,
+    )
+    updated_at: Optional[datetime] = Field(
+        None,
+        description=DESC_UPDATED_AT,
+    )
 class AuthUserLogin(BaseModel):
     email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
     password: str = Field(
@@ -111,11 +151,14 @@ class AuthUserInDb(AuthUser):
     model_config = ConfigDict(use_enum_values=True, populate_by_name=True)
 
 
-DESC_PHONE = "Número de celular do usuário"
-EXAMPLE_PHONE = "(85) 99124-8874"
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1, max_length=PASSWORD_MAX)
+    new_password: str = Field(..., min_length=PASSWORD_MIN, max_length=PASSWORD_MAX)
 
 
 class UpdateUserSchema(BaseModel):
+    cpf: Optional[str] = Field(None, pattern=r"^\d{11}$")
+    birth_date: Optional[str] = Field(None, pattern=r"^\d{2}/\d{2}/\d{4}$")
     fullname: Optional[str] = Field(
         None,
         max_length=FULLNAME_MAX,
@@ -136,6 +179,10 @@ class UpdateUserSchema(BaseModel):
 
 
 class AuthUserReponse(BaseModel):
+    phone: Optional[str] = None
+    cpf: Optional[str] = None
+    birth_date: Optional[str] = None
+    avatar_url: Optional[str] = None
     id: str = Field(..., alias="_id", description=DESC_USER_ID, example=EXAMPLE_USER_ID)
     fullname: Optional[str] = Field(
         None,

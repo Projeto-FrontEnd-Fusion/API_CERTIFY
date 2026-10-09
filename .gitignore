@@ -178,4 +178,10 @@ pyrightconfig.json
 # Generated using ignr.py - github.com/Antrikshy/ignr.py
 
 
+# Local validation outputs
+lint-report.local.json
+coverage.local.xml
+artifacts/
+audit-report.local.json
+audit-requirements.local.txt
 .vscode/

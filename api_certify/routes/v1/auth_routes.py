@@ -1,3 +1,4 @@
+from api_certify.models.auth_model import ChangePasswordRequest
 from fastapi import APIRouter, Depends, HTTPException
 
 from api_certify.dependencies import get_auth_service, get_current_user
@@ -245,3 +246,13 @@ async def logout(
         success=True,
         message=result["message"],
     )
+
+
+@auth_routes.post("/change-password", response_model=SucessResponse)
+async def change_password(
+    payload: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+):
+    await service.change_password(current_user["sub"], payload.current_password, payload.new_password)
+    return SucessResponse(success=True, message="Senha atualizada com sucesso", data={})

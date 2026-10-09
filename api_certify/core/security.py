@@ -3,7 +3,8 @@ from datetime import datetime, timedelta, timezone
 
 import uuid
 from dotenv import load_dotenv
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError as JWTError
 from passlib.context import CryptContext
 
 load_dotenv()
