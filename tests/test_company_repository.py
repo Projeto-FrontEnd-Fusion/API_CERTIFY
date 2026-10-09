@@ -6,6 +6,29 @@ from api_certify.models.auth_model import AuthUserLogin, CompanyUser
 
 
 @pytest.mark.asyncio
+async def test_company_can_login_after_signup():
+    client = AsyncMongoMockClient()
+    repo = AuthRepository(client["CERTIFY"])
+    await repo.create_company(
+        CompanyUser(
+            razao_social="Empresa Teste Ltda",
+            cnpj="12345678000195",
+            email="contato@empresa.com",
+            password="SenhaSegura123!",
+        )
+    )
+    company = await repo.login(
+        AuthUserLogin(
+            email="contato@empresa.com",
+            password="SenhaSegura123!",
+        )
+    )
+    assert company.role == "empresa"
+    assert company.razao_social == "Empresa Teste Ltda"
+    assert company.cnpj == "12345678000195"
+
+
+@pytest.mark.asyncio
 async def test_create_company_success():
     client = AsyncMongoMockClient()
     db = client["CERTIFY"]
@@ -29,29 +52,24 @@ async def test_create_company_success():
 
 
 @pytest.mark.asyncio
-async def test_company_can_login_after_signup():
+async def test_create_company_with_alphanumeric_cnpj_preserves_value():
     client = AsyncMongoMockClient()
     db = client["CERTIFY"]
+
     repo = AuthRepository(db)
-
-    await repo.create_company(
-        CompanyUser(
-            razao_social="Empresa Teste Ltda",
-            cnpj="12345678000195",
-            email="contato@empresa.com",
-            password="SenhaSegura123!",
-        )
+    cnpj = "AB12CD34567818"
+    payload = CompanyUser(
+        razao_social="Empresa Alfanumérica Ltda",
+        cnpj=cnpj,
+        email="alfanumerica@empresa.com",
+        password="SenhaSegura123!",
     )
 
-    company = await repo.login(
-        AuthUserLogin(
-            email="contato@empresa.com",
-            password="SenhaSegura123!",
-        )
-    )
+    result = await repo.create_company(payload)
 
-    assert company.role == "empresa"
-    assert company.razao_social == "Empresa Teste Ltda"
+    assert result.cnpj == cnpj
+    stored_company = await db.auth_database.find_one({"cnpj": cnpj})
+    assert stored_company["cnpj"] == cnpj
 
 
 @pytest.mark.asyncio

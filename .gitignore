@@ -184,3 +184,4 @@ coverage.local.xml
 artifacts/
 audit-report.local.json
 audit-requirements.local.txt
+.vscode/
