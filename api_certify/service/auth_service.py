@@ -1,4 +1,5 @@
-import logging
+import asyncio
+from email.message import EmailMessage
 import secrets
 import string
 from datetime import datetime, timedelta, timezone
@@ -21,12 +22,12 @@ from api_certify.models.auth_model import (
     CompanyUser,
     UpdateUserSchema,
 )
+from api_certify.service.certificate_email_service import SMTPTransport
 
-logger = logging.getLogger(__name__)
-PASSWORD_RESET_CODE_TTL_MINUTES = 10
 from api_certify.repositories.auth_repository import AuthRepository
 from api_certify.repositories.refresh_token_repository import RefreshTokenRepository
 
+PASSWORD_RESET_CODE_TTL_MINUTES = 10
 
 class AuthService:
 
@@ -154,7 +155,19 @@ class AuthService:
         return "".join(secrets.choice(string.digits) for _ in range(6))
 
     def _send_password_reset_code(self, email: str, code: str) -> None:
-        logger.info("Código de recuperação para %s: %s", email, code)
+        transport = SMTPTransport()
+        if not transport.host or not transport.sender:
+            raise RuntimeError('SMTP não configurado')
+        message = EmailMessage()
+        message['From'] = transport.sender
+        message['To'] = email
+        message['Subject'] = 'Código de recuperação de senha — Certify'
+        message.set_content(
+            f'Seu código de recuperação é {code}. '
+            f'Ele expira em {PASSWORD_RESET_CODE_TTL_MINUTES} minutos. '
+            'Se você não solicitou a recuperação, ignore este e-mail.'
+        )
+        transport.send(message)
 
     def _is_strong_password(self, password: str) -> bool:
         if len(password) < 8:
@@ -173,7 +186,7 @@ class AuthService:
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Usuário não encontrado",
+                detail='Usuário não encontrado',
             )
 
         code = self._generate_reset_code()
@@ -188,9 +201,15 @@ class AuthService:
             expires_at=expires_at,
         )
 
-        self._send_password_reset_code(email, code)
+        try:
+            await asyncio.to_thread(self._send_password_reset_code, email, code)
+        except Exception:
+            raise HTTPException(
+                status_code=503,
+                detail='Não foi possível enviar o código de recuperação. Tente novamente.',
+            ) from None
 
-        return {"message": "Código de recuperação enviado"}
+        return {'message': 'Código de recuperação enviado'}
 
     async def verify_code(self, email: str, code: str) -> dict:
         user = await self.auth_repository.get_user_by_email(email)

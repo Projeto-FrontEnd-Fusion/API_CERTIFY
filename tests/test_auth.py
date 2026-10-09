@@ -3,6 +3,32 @@ from unittest.mock import AsyncMock
 from fastapi import HTTPException
 
 
+def test_password_reset_sends_code_with_smtp(auth_service, monkeypatch):
+    from unittest.mock import Mock
+    from api_certify.service import auth_service as auth_module
+
+    transport = Mock(host='smtp.test', sender='certify@example.com')
+    monkeypatch.setattr(auth_module, 'SMTPTransport', lambda: transport)
+    auth_service._send_password_reset_code('student@example.com', '123456')
+    message = transport.send.call_args.args[0]
+    assert message['To'] == 'student@example.com'
+    assert '123456' in message.get_content()
+    assert '10 minutos' in message.get_content()
+
+
+@pytest.mark.asyncio
+async def test_password_reset_does_not_claim_delivery_after_smtp_failure(auth_service, auth_repository_mock, monkeypatch):
+    from unittest.mock import Mock
+
+    auth_repository_mock.get_user_by_email.return_value = AuthUserReponse(
+        _id='1', fullname='Aluno Teste', email='student@example.com', role=Role.USER,
+    )
+    monkeypatch.setattr(auth_service, '_send_password_reset_code', Mock(side_effect=ConnectionError()))
+    with pytest.raises(HTTPException) as error:
+        await auth_service.forgot_password('student@example.com')
+    assert error.value.status_code == 503
+
+
 from api_certify.models.auth_model import (
     AuthUser,
     AuthUserLogin,
@@ -76,7 +102,10 @@ async def test_forgot_password_unknown_email_raises_not_found(
 
 
 @pytest.mark.asyncio
-async def test_forgot_password_success(auth_service, auth_repository_mock):
+async def test_forgot_password_success(auth_service, auth_repository_mock, monkeypatch):
+    from unittest.mock import Mock
+    sender = Mock()
+    monkeypatch.setattr(auth_service, '_send_password_reset_code', sender)
     auth_repository_mock.get_user_by_email = AsyncMock(
         return_value=AuthUserReponse(
             _id="1",
@@ -93,6 +122,9 @@ async def test_forgot_password_success(auth_service, auth_repository_mock):
     result = await auth_service.forgot_password("teste@example.com")
 
     assert result["message"] == "Código de recuperação enviado"
+    sender.assert_called_once()
+    assert sender.call_args.args[0] == 'teste@example.com'
+    assert len(sender.call_args.args[1]) == 6
 
 
 @pytest.mark.asyncio

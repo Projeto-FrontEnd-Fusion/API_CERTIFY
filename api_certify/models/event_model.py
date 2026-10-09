@@ -24,6 +24,7 @@ EVENT_NAME_MAX = 200
 
 
 class CreateEvent(BaseModel):
+    design: dict = Field(default_factory=dict)
     name: str = Field(
         ...,
         min_length=EVENT_NAME_MIN,
@@ -73,6 +74,7 @@ class CreateEvent(BaseModel):
 
 
 class EventInDb(BaseModel):
+    design: dict = Field(default_factory=dict)
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: str = Field(

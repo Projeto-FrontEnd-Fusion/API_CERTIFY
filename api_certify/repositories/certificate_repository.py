@@ -1,7 +1,7 @@
 import math
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from bson.objectid import ObjectId
 from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorDatabase
@@ -25,7 +25,7 @@ def add_years(data: datetime, anos: int) -> datetime:
         return data.replace(month=2, day=28, year=data.year + anos)
 
 
-def mocked_certificate(
+def build_certificate(
     userId: str,
     participantName: str,
     participantEmail: str,
@@ -34,54 +34,62 @@ def mocked_certificate(
     issuer_id: str | None = None,
     event_data: dict | None = None,
 ) -> dict:
-
     now = datetime.now(timezone.utc)
-    format = "%Y-%m-%dT%H:%M:%S.%fZ"
 
-    if event_data is None:
-        event_data = {
-            "id": "1",
-            "name": "Imersão Dev Insights",
-            "institution": "Comunidade Frontend Fusion",
-            "description": "Participou da Imersão Dev Insights.",
-            "workload": 9,
-            "start_date": datetime.strptime("2025-11-05T00:00:00.000Z", format),
-            "end_date": datetime.strptime("2025-11-07T00:00:00.000Z", format),
-        }
+    if not event_data:
+        raise ValueError(
+            'Dados do evento são obrigatórios para emitir certificados.'
+        )
 
-    event_id = str(event_data.get("id") or event_data.get("_id") or "1")
-    event_name = event_data.get("name") or event_data.get("event_name") or "Evento"
-    institution_name = (
-        event_data.get("institution")
-        or event_data.get("institution_name")
-        or "Comunidade Frontend Fusion"
+    event_id = str(event_data.get('id') or event_data.get('_id') or '')
+    event_name = (
+        event_data.get('name') or event_data.get('event_name') or 'Evento'
     )
-    description = event_data.get("description") or "Participou do evento."
-    workload = str(event_data.get("workload") or "9")
-    event_start = event_data.get("start_date")
-    event_end = event_data.get("end_date")
-    event_date = event_data.get("start_date")
+    institution_name = (
+        event_data.get('institution')
+        or event_data.get('institution_name')
+        or ''
+    )
+    description = event_data.get('description') or 'Participou do evento.'
+    workload = str(event_data.get('workload') or '')
+    event_start = event_data.get('start_date')
+    event_end = event_data.get('end_date')
+    event_date = event_data.get('start_date')
 
     result = {
-        "user_id": str(userId),
-        "access_key": access_key,
-        "status": status,
-        "participant_name": participantName,
-        "participant_email": participantEmail,
-        "institution_name": institution_name,
-        "event_id": event_id,
-        "event_name": event_name,
-        "description": description,
-        "workload": workload,
-        "event_start": event_start,
-        "event_end": event_end,
-        "event_date": event_date,
-        "issued_at": now,
-        "valid_until": add_years(now, 2),
+        'user_id': str(userId),
+        'access_key': access_key,
+        'status': status,
+        'participant_name': participantName,
+        'participant_email': participantEmail,
+        'institution_name': institution_name,
+        'event_id': event_id,
+        'event_name': event_name,
+        'description': description,
+        'workload': workload,
+        'event_start': event_start,
+        'event_end': event_end,
+        'event_date': event_date,
+        'issued_at': now,
+        'valid_until': add_years(now, 2),
+        'design': event_data.get('design') or {},
     }
 
+    validity = (event_data.get('design') or {}).get('validity')
+    durations = {
+        '30 dias': 30,
+        '90 dias': 90,
+        '6 meses': 180,
+        '1 ano': 365,
+        '2 anos': 730,
+    }
+    if validity == 'Sem validade':
+        result['valid_until'] = None
+    elif validity in durations:
+        result['valid_until'] = now + timedelta(days=durations[validity])
+
     if issuer_id is not None:
-        result["issuer_id"] = issuer_id
+        result['issuer_id'] = issuer_id
 
     return result
 
@@ -147,6 +155,7 @@ class CertificateRepository:
         certificate_data: CreateCertificate,
         issuer_id: str | None = None,
         event_data: dict | None = None,
+        notify_students: bool = True,
     ) -> CertificateInDb:
 
         if certificate_data.access_key != ACCESS_KEY:
@@ -157,7 +166,7 @@ class CertificateRepository:
         if existing:
             return existing
 
-        created_certificate = mocked_certificate(
+        created_certificate = build_certificate(
             userId=user_id,
             participantEmail=certificate_data.email,
             participantName=certificate_data.fullname,
@@ -168,7 +177,10 @@ class CertificateRepository:
         )
 
         created_certificate['notifications'] = {
-            'student': {'status': 'pending', 'attempts': 0},
+            'student': {
+                'status': 'pending' if notify_students else 'deferred',
+                'attempts': 0,
+            },
             'company': {'status': 'pending' if issuer_id else 'skipped', 'attempts': 0},
         }
         result = await self.certificate_collection.insert_one(created_certificate)
@@ -292,12 +304,15 @@ class CertificateRepository:
 
     async def get_certificate(self, certificate_id: str) -> CertificateInDb:
 
+        if not ObjectId.is_valid(certificate_id):
+            return None
+
         existingCertificate = await self.certificate_collection.find_one(
             {"_id": ObjectId(certificate_id)}
         )
 
         if not existingCertificate:
-            raise Exception("Certificado não encontrado.")
+            return None
 
         existingCertificate["_id"] = str(existingCertificate["_id"])
 
