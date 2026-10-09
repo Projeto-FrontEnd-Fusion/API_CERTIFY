@@ -21,11 +21,7 @@ from api_certify.repositories.certificate_repository import CertificateRepositor
 from api_certify.service.auth_service import AuthService
 from api_certify.service.certificate_service import CertificateService
 
-from api_certify.service.auth_service import AuthService
-from api_certify.service.certificate_service import CertificateService
 from api_certify.service.event_service import EventService
-from api_certify.repositories.auth_repository import AuthRepository
-from api_certify.repositories.certificate_repository import CertificateRepository
 from api_certify.repositories.event_repository import EventRepository
 from api_certify.repositories.refresh_token_repository import RefreshTokenRepository
 

@@ -2,7 +2,6 @@ import pytest
 from unittest.mock import AsyncMock
 from fastapi import HTTPException
 
-from datetime import datetime, timedelta, timezone
 
 from api_certify.models.auth_model import (
     AuthUser,

@@ -28,7 +28,7 @@ class MongoDBConnection:
             # Ping para validar conexão real
             await self._client.admin.command('ping')
             self._database = self._client[db_name]
-        except Exception as e:
+        except Exception:
             self._client = None
             self._database = None
             raise RuntimeError(

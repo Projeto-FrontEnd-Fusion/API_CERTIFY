@@ -57,7 +57,11 @@ class RefreshTokenRepository:
             return None
 
         # Verificar expiração
-        if doc["expires_at"] < datetime.now(timezone.utc):
+        expires_at = doc["expires_at"]
+        # BSON dates are UTC; the default MongoDB codec returns naive dates.
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < datetime.now(timezone.utc):
             await self.revoke(token)
             return None
 

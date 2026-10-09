@@ -51,6 +51,24 @@ async def get_event(
         data={"event": event},
     )
 
+@event_routes.delete(
+    "/{event_id}",
+    response_model=SucessResponse,
+    status_code=200,
+)
+async def delete_event(
+    event_id: str,
+    service: EventService = Depends(get_event_service),
+    current_user: dict = Depends(get_current_user),
+):
+    await service.delete_event(event_id)
+
+    return SucessResponse(
+        success=True,
+        message="Evento excluído com sucesso",
+    )
+
+
 @event_routes.put(
     "/{event_id}",
     response_model=SucessResponse,

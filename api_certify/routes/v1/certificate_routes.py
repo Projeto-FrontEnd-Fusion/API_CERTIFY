@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from api_certify.dependencies import (
     get_certificate_service,
@@ -50,10 +50,12 @@ async def validate_certificate(
 )
 async def create_batch_certificates(
     payload: BatchCertificateRequest,
+    background_tasks: BackgroundTasks,
     service: CertificateService = Depends(get_certificate_service),
     current_user: dict = Depends(require_role("empresa")),
 ):
-    summary = await service.create_batch_certificates(payload)
+    summary = await service.create_batch_certificates(payload, issuer_id=current_user.get("sub"))
+    background_tasks.add_task(service.send_pending_notifications)
 
     if hasattr(summary, "model_dump"):
         response_data = summary.model_dump()
@@ -78,6 +80,7 @@ async def create_batch_certificates(
 async def request_certificate(
     user_id: str,
     payload: CreateCertificate,
+    background_tasks: BackgroundTasks,
     service: CertificateService = Depends(get_certificate_service),
     current_user: dict = Depends(require_role("empresa")),
 ):
@@ -86,6 +89,7 @@ async def request_certificate(
         payload,
         issuer_id=current_user.get("sub"),
     )
+    background_tasks.add_task(service.send_pending_notifications)
 
     return SucessResponse(
         success=True,

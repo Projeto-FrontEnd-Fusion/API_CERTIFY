@@ -25,10 +25,12 @@ class CertificateService:
         certificate_repository: CertificateRepository,
         auth_repository: AuthRepository,
         event_repository: EventRepository,
+        email_service=None,
     ):
         self.certificate_repository = certificate_repository
         self.auth_repository = auth_repository
         self.event_repository = event_repository
+        self.email_service = email_service
 
     # =====================================
     # Criar certificado
@@ -81,11 +83,12 @@ class CertificateService:
         return await self.certificate_repository.create(
             user_id,
             certificate_data,
+            issuer_id=issuer_id,
             event_data=event_payload,
         )
 
     async def create_batch_certificates(
-        self, payload: dict | BatchCertificateRequest
+        self, payload: dict | BatchCertificateRequest, issuer_id: str | None = None
     ) -> BatchCertificateSummary:
         if isinstance(payload, dict):
             payload = BatchCertificateRequest(**payload)
@@ -146,6 +149,7 @@ class CertificateService:
                 await self.certificate_repository.create(
                     user_id,
                     certificate_data,
+                    issuer_id=issuer_id,
                     event_data=event_payload,
                 )
                 return "created"
@@ -259,3 +263,7 @@ class CertificateService:
             event_start=doc.get("event_start"),
             event_end=doc.get("event_end"),
         )
+
+    async def send_pending_notifications(self):
+        if self.email_service is not None:
+            await self.email_service.dispatch_pending()
