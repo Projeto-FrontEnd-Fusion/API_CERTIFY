@@ -78,7 +78,9 @@ class CertificateEmailService:
         )
         return message
 
-    async def dispatch_pending(self, limit=200):
+    async def dispatch_pending(
+        self, limit=200, certificate_ids=None, audiences=('student', 'company')
+    ):
         parsed = urlparse(self.frontend_url)
         if (
             not self.transport.host
@@ -87,7 +89,7 @@ class CertificateEmailService:
             or not parsed.netloc
         ):
             return
-        for audience in ('student', 'company'):
+        for audience in audiences:
             prefix = f'notifications.{audience}'
             for _ in range(limit):
                 now = datetime.now(timezone.utc)
@@ -106,6 +108,8 @@ class CertificateEmailService:
                         },
                     ]
                 }
+                if certificate_ids is not None:
+                    eligible['_id'] = {'$in': certificate_ids}
                 certificate = await self.collection.find_one_and_update(
                     eligible,
                     {

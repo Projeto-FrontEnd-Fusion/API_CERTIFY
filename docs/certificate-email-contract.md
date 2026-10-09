@@ -4,6 +4,10 @@ Interpretação: aluno recebe aviso com link de validação e acesso ao portal; 
 
 As rotas existentes `POST /api/v1/certificate/{user_id}` e `POST /api/v1/certificate/batch` mantêm os contratos de resposta. O emissor vem do token, nunca do corpo enviado pelo cliente.
 
+A emissão em lote aceita `notify_students: false` para adiar somente o aviso dos alunos. O frontend usa essa opção e chama `POST /api/v1/certificate/send-links` quando a empresa escolhe enviar. A listagem permite enviar mais tarde. Consulte [o contrato de integração](frontend-integration-contract.md) para permissões, contagens e estados. Certificados que já estão `sent` não são reenviados por esse botão.
+
+A recuperação de senha também usa essas variáveis SMTP para enviar o código de 6 dígitos; o código deixa de ser registrado no log. Falha no envio retorna 503, em vez de anunciar que um e-mail foi enviado.
+
 O certificado e os estados de notificação são gravados no mesmo documento MongoDB. Após responder à emissão, o backend tenta enviar os e-mails por SMTP. Falhas no SMTP não desfazem a emissão: o envio fica pendente para nova tentativa. Cada destinatário tem estado independente; emitir novamente um certificado existente não cria outra notificação.
 
 Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_SECURITY` (`starttls`, `ssl` ou `none`) e `FRONTEND_URL` (origem HTTPS do frontend). Usuário/senha são opcionais para servidores de teste locais. Sem host, remetente ou URL do frontend, os envios permanecem pendentes.

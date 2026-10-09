@@ -9,11 +9,24 @@ from api_certify.models.certificate_model import (
     BatchCertificateRequest,
     CreateCertificate,
     Status,
+    SendLinksRequest,
 )
 from api_certify.schemas.responses import SucessResponse
 from api_certify.service.certificate_service import CertificateService
 
 certificate_routes = APIRouter(prefix="/certificate", tags=["Certificates"])
+
+
+@certificate_routes.post('/send-links', response_model=SucessResponse)
+async def send_links(
+    payload: SendLinksRequest,
+    service: CertificateService = Depends(get_certificate_service),
+    current_user: dict = Depends(get_current_user),
+):
+    result = await service.send_links(payload.certificate_ids, current_user)
+    return SucessResponse(
+        success=True, message='Processamento de envio concluído.', data=result
+    )
 
 
 # ================================
@@ -125,7 +138,7 @@ async def get_many_certificate(
     role = current_user.get("role")
     token_user_id = current_user.get("sub")
 
-    if role == "user" and token_user_id != user_id:
+    if role != "admin" and token_user_id != user_id:
         raise HTTPException(
             status_code=403,
             detail="Acesso negado. Permissão insuficiente para esta ação.",
@@ -239,10 +252,23 @@ async def get_certificate_by_id(
     certificate = await service.get_certificate_by_id(item_id)
 
     if not certificate:
-        raise HTTPException(status_code=404, detail="Certificado não encontrado")
+        raise HTTPException(
+            status_code=404, detail='Certificado não encontrado'
+        )
+
+    data = (
+        certificate.model_dump()
+        if hasattr(certificate, 'model_dump')
+        else certificate
+    )
+    if current_user.get('role') != 'admin' and current_user.get('sub') not in {
+        data.get('user_id'),
+        data.get('issuer_id'),
+    }:
+        raise HTTPException(status_code=403, detail='Acesso negado.')
 
     return SucessResponse(
         success=True,
-        message="Certificado obtido com sucesso.",
-        data={"certificate": certificate},
+        message='Certificado obtido com sucesso.',
+        data={'certificate': certificate},
     )

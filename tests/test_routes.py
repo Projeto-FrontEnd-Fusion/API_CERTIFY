@@ -394,6 +394,7 @@ async def test_get_certificate_by_id(
 
     certificate_service_mock.get_certificate_by_id.return_value = {
         "id": "cert_123",
+        "user_id": "user123",
         "status": "available",
     }
 
@@ -408,6 +409,27 @@ async def test_get_certificate_by_id(
 
     assert certificate is not None
     assert certificate["id"] == "cert_123"
+
+
+@pytest.mark.asyncio
+async def test_get_certificate_by_id_denies_other_participant(async_client, certificate_service_mock):
+    certificate_service_mock.get_certificate_by_id.return_value = {
+        'id': 'cert_123', 'user_id': 'other-user', 'issuer_id': 'company-id',
+    }
+    response = await async_client.get('/api/v1/certificate/cert_123')
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_send_links_route_passes_authenticated_identity(async_client, certificate_service_mock):
+    certificate_id = '507f1f77bcf86cd799439022'
+    certificate_service_mock.send_links.return_value = {'total': 1, 'sent': 0, 'failed': 1, 'pending': 0}
+    response = await async_client.post('/api/v1/certificate/send-links', json={'certificate_ids': [certificate_id]})
+    assert response.status_code == 200
+    assert response.json()['data']['failed'] == 1
+    certificate_service_mock.send_links.assert_awaited_once_with(
+        [certificate_id], {'sub': 'user123', 'email': 'test@email.com', 'role': 'user'},
+    )
 
 
 @pytest.mark.asyncio

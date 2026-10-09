@@ -115,6 +115,7 @@ default_frontend_urls = [
     "https://www.certifyfusion.com.br",
     "https://certifyfusion.com.br",
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "https://certify-platform-iota.vercel.app",
 ]
 frontend_urls = os.getenv("FRONTEND_URLS", "")

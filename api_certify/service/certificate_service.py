@@ -1,4 +1,7 @@
 import asyncio
+from datetime import datetime, timezone
+from bson import ObjectId
+from urllib.parse import urlparse
 
 from fastapi import HTTPException, status
 
@@ -151,6 +154,7 @@ class CertificateService:
                     certificate_data,
                     issuer_id=issuer_id,
                     event_data=event_payload,
+                    notify_students=payload.notify_students,
                 )
                 return "created"
             except Exception:
@@ -254,8 +258,25 @@ class CertificateService:
     ) -> CertificateValidationResponse:
         doc = await self.certificate_repository.find_by_access_key(access_key)
         if not doc:
-            raise Exception("Certificado não encontrado ou código inválido.")
+            raise HTTPException(
+                status_code=404,
+                detail="Certificado não encontrado ou código inválido.",
+            )
+        expiry = doc.get('valid_until')
+        if expiry:
+            if isinstance(expiry, str):
+                expiry = datetime.fromisoformat(expiry.replace('Z', '+00:00'))
+            expires_at = expiry.replace(tzinfo=expiry.tzinfo or timezone.utc)
+            if expires_at <= datetime.now(timezone.utc):
+                raise HTTPException(
+                    status_code=404, detail='Certificado expirado.'
+                )
         return CertificateValidationResponse(
+            access_key=access_key,
+            institution_name=doc.get('institution_name', ''),
+            description=doc.get('description', ''),
+            valid_until=doc.get('valid_until'),
+            design=doc.get('design') or {},
             participant_name=doc["participant_name"],
             event_name=doc["event_name"],
             workload=doc["workload"],
@@ -267,3 +288,82 @@ class CertificateService:
     async def send_pending_notifications(self):
         if self.email_service is not None:
             await self.email_service.dispatch_pending()
+
+    async def send_links(self, certificate_ids: list[str], current_user: dict):
+        ids = list(dict.fromkeys(certificate_ids))
+        if any(not ObjectId.is_valid(item) for item in ids):
+            raise HTTPException(
+                status_code=422, detail='ID de certificado inválido.'
+            )
+        collection = self.certificate_repository.certificate_collection
+        object_ids = [ObjectId(item) for item in ids]
+        docs = await collection.find({'_id': {'$in': object_ids}}).to_list(
+            length=200
+        )
+        if len(docs) != len(ids):
+            raise HTTPException(
+                status_code=404, detail='Certificado não encontrado.'
+            )
+        for doc in docs:
+            owner = (
+                doc.get('issuer_id')
+                if current_user.get('role') == 'empresa'
+                else doc.get('user_id')
+            )
+            if current_user.get('role') != 'admin' and owner != current_user.get(
+                'sub'
+            ):
+                raise HTTPException(status_code=403, detail='Acesso negado.')
+            expiry = doc.get('valid_until')
+            if doc.get('status') != 'available' or (
+                expiry
+                and expiry.replace(tzinfo=expiry.tzinfo or timezone.utc)
+                <= datetime.now(timezone.utc)
+            ):
+                raise HTTPException(
+                    status_code=409, detail='Certificado indisponível para envio.'
+                )
+        email = self.email_service
+        if email is None or not email.transport.host or not email.transport.sender:
+            raise HTTPException(
+                status_code=503, detail='Serviço de e-mail não configurado.'
+            )
+        url = urlparse(email.frontend_url)
+        if url.scheme not in {'http', 'https'} or not url.netloc:
+            raise HTTPException(
+                status_code=503, detail='URL do frontend não configurada.'
+            )
+        await collection.update_many(
+            {
+                '_id': {'$in': object_ids},
+                'notifications.student.status': {'$in': ['deferred', 'failed']},
+            },
+            {'$set': {'notifications.student.status': 'pending'}},
+        )
+        await collection.update_many(
+            {
+                '_id': {'$in': object_ids},
+                'notifications.student.status': {'$exists': False},
+            },
+            {
+                '$set': {
+                    'notifications.student': {'status': 'pending', 'attempts': 0}
+                }
+            },
+        )
+        await email.dispatch_pending(
+            certificate_ids=object_ids, audiences=('student',)
+        )
+        docs = await collection.find({'_id': {'$in': object_ids}}).to_list(
+            length=200
+        )
+        states = [
+            doc.get('notifications', {}).get('student', {}).get('status')
+            for doc in docs
+        ]
+        return {
+            'total': len(ids),
+            'sent': states.count('sent'),
+            'failed': states.count('failed'),
+            'pending': len(ids) - states.count('sent') - states.count('failed'),
+        }

@@ -70,6 +70,7 @@ class Status(str, Enum):
     PENDING = "pending"
     AVAILABLE = "available"
     EXPIRED = "expired"
+    INACTIVE = "inactive"
 
 
 
@@ -114,6 +115,7 @@ class BatchParticipant(BaseModel):
 
 
 class BatchCertificateRequest(BaseModel):
+    notify_students: bool = True
     event_id: str = Field(
         ...,
         description=DESC_CERTIFICATE_EVENT_ID,
@@ -134,6 +136,10 @@ class BatchCertificateSummary(BaseModel):
     erros: int
 
 
+class SendLinksRequest(BaseModel):
+    certificate_ids: list[str] = Field(..., min_length=1, max_length=200)
+
+
 class RequestCertificate(BaseModel):
     user_id: str = Field(
         ...,
@@ -151,6 +157,9 @@ class RequestCertificateById(BaseModel):
 
 # alterado para CertificateInDb , refletindo o modelo completo no banco de dados
 class CertificateInDb(BaseModel):
+    issuer_id: Optional[str] = None
+    notifications: dict = Field(default_factory=dict)
+    design: dict = Field(default_factory=dict)
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: str = Field(
@@ -237,7 +246,7 @@ class CertificateInDb(BaseModel):
         description=DESC_CERTIFICATE_ISSUED_AT,
         example=EXAMPLE_CERTIFICATE_ISSUED_AT,
     )
-    valid_until: datetime = Field(
+    valid_until: Optional[datetime] = Field(
         ...,
         description=DESC_CERTIFICATE_VALID_UNTIL,
         example=EXAMPLE_CERTIFICATE_VALID_UNTIL,

@@ -111,7 +111,9 @@ async def test_create_certificate_stores_issuer_id():
         email="joao@example.com",
     )
 
-    created = await repo.create("user1", payload, issuer_id="company123")
+    created = await repo.create("user1", payload, issuer_id="company123", event_data={
+        'id': 'event-1', 'name': 'Evento real', 'institution': 'Empresa real', 'workload': 20,
+    })
 
     assert created.issuer_id == "company123"
 

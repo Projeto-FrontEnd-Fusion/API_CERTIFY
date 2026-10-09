@@ -273,3 +273,84 @@ async def test_worker_resumes_interrupted_send_after_restart():
     assert len(transport.messages) == 1
     assert transport.messages[0]['To'] == 'student@example.com'
     assert (await database.certificates.find_one({}))['notifications']['student']['status'] == 'sent'
+
+
+@pytest.mark.asyncio
+async def test_deferred_links_send_only_selected_students_and_do_not_duplicate():
+    database, service, transport, company_id, _ = await setup_services()
+    summary = await service.create_batch_certificates(BatchCertificateRequest(
+        event_id='event-1', notify_students=False, participants=[
+            {'fullname': 'Aluno Teste', 'email': 'student@example.com'},
+            {'fullname': 'Outro Aluno', 'email': 'other@example.com'},
+        ],
+    ), issuer_id=company_id)
+    assert summary.criados == 2
+    await service.send_pending_notifications()
+    assert all(message['To'] == 'company@example.com' for message in transport.messages)
+    documents = await database.certificates.find({}).to_list(10)
+    student = next(doc for doc in documents if doc['participant_email'] == 'student@example.com')
+    other = next(doc for doc in documents if doc['participant_email'] == 'other@example.com')
+    ids = [str(student['_id']), str(student['_id'])]
+    result = await service.send_links(ids, {'sub': company_id, 'role': 'empresa'})
+    assert result == {'total': 1, 'sent': 1, 'failed': 0, 'pending': 0}
+    await service.send_links(ids, {'sub': company_id, 'role': 'empresa'})
+    assert sum(message['To'] == 'student@example.com' for message in transport.messages) == 1
+    assert (await database.certificates.find_one({'_id': other['_id']}))['notifications']['student']['status'] == 'deferred'
+
+
+@pytest.mark.asyncio
+async def test_send_links_checks_ownership_before_changing_any_notification():
+    from fastapi import HTTPException
+
+    database, service, transport, company_id, _ = await setup_services()
+    await service.create_batch_certificates(BatchCertificateRequest(
+        event_id='event-1', notify_students=False,
+        participants=[{'fullname': 'Aluno Teste', 'email': 'student@example.com'}],
+    ), issuer_id=company_id)
+    doc = await database.certificates.find_one({})
+    with pytest.raises(HTTPException) as error:
+        await service.send_links([str(doc['_id'])], {'sub': 'another-company', 'role': 'empresa'})
+    assert error.value.status_code == 403
+    assert transport.messages == []
+    assert (await database.certificates.find_one({}))['notifications']['student']['status'] == 'deferred'
+
+
+@pytest.mark.asyncio
+async def test_send_links_reports_smtp_failure_and_missing_configuration():
+    from fastapi import HTTPException
+
+    database, service, transport, company_id, _ = await setup_services()
+    await service.create_batch_certificates(BatchCertificateRequest(
+        event_id='event-1', notify_students=False,
+        participants=[{'fullname': 'Aluno Teste', 'email': 'student@example.com'}],
+    ), issuer_id=company_id)
+    doc = await database.certificates.find_one({})
+    transport.host = ''
+    with pytest.raises(HTTPException) as error:
+        await service.send_links([str(doc['_id'])], {'sub': company_id, 'role': 'empresa'})
+    assert error.value.status_code == 503
+    assert (await database.certificates.find_one({}))['notifications']['student']['status'] == 'deferred'
+    transport.host = 'smtp.test'
+    transport.fail_student = True
+    result = await service.send_links([str(doc['_id'])], {'sub': company_id, 'role': 'empresa'})
+    assert result == {'total': 1, 'sent': 0, 'failed': 1, 'pending': 0}
+
+
+@pytest.mark.asyncio
+async def test_public_validation_uses_actual_data_and_rejects_expired_certificate():
+    from fastapi import HTTPException
+
+    database, service, _, company_id, student_id = await setup_services()
+    certificate = await service.create_participant_certificate(student_id, CreateCertificate(
+        fullname='Aluno Teste', email='student@example.com', event_id='event-1',
+        access_key=ACCESS_KEY, status='available',
+    ), issuer_id=company_id)
+    result = await service.validate_certificate(certificate.access_key)
+    assert result.institution_name == 'Empresa Teste'
+    assert result.access_key == certificate.access_key
+    assert 'participant_email' not in result.model_dump()
+    assert 'notifications' not in result.model_dump()
+    await database.certificates.update_one({}, {'$set': {'valid_until': datetime.now(timezone.utc) - timedelta(days=1)}})
+    with pytest.raises(HTTPException) as error:
+        await service.validate_certificate(certificate.access_key)
+    assert error.value.status_code == 404
