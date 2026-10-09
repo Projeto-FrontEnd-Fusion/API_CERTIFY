@@ -323,6 +323,8 @@ async def test_create_batch_certificates(
 
     assert response.status_code == 201
     assert response.json()["data"]["criados"] == 2
+    assert certificate_service_mock.create_batch_certificates.call_args.kwargs["issuer_id"] == "company123"
+    certificate_service_mock.send_pending_notifications.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -521,14 +523,14 @@ async def test_create_certificate_without_token(async_client_no_auth):
         },
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_get_certificates_without_token(async_client_no_auth):
     response = await async_client_no_auth.get("/api/v1/certificate/users/user123")
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 # ==========================================
@@ -690,7 +692,7 @@ async def test_update_user_without_token(async_client_no_auth):
         json={"fullname": "Hacker"},
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 @pytest.fixture
@@ -912,22 +914,6 @@ async def test_create_event_name_too_short(company_client, company_headers):
     assert response.status_code == 422
 
 
-@pytest.mark.asyncio
-async def test_create_event_without_token(async_client_no_auth):
-
-    response = await async_client_no_auth.post(
-        "/api/v1/events",
-        json={
-            "name": "Evento Teste",
-            "institution": "Instituição",
-            "workload": 5,
-            "description": "Descrição",
-            "start_date": "2025-11-05T00:00:00",
-            "end_date": "2025-11-07T00:00:00",
-        },
-    )
-
-    assert response.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -1019,7 +1005,7 @@ async def test_delete_event_without_token(async_client_no_auth):
 
     response = await async_client_no_auth.delete("/api/v1/events/evt_123")
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 # ==========================================
@@ -1153,7 +1139,7 @@ async def test_create_event_without_token(async_client_no_auth):
         },
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 # ==========================================
 # TESTS - AUTH ENDPOINTS

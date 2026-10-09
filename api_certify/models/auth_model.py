@@ -151,7 +151,14 @@ class AuthUserInDb(AuthUser):
     model_config = ConfigDict(use_enum_values=True, populate_by_name=True)
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1, max_length=PASSWORD_MAX)
+    new_password: str = Field(..., min_length=PASSWORD_MIN, max_length=PASSWORD_MAX)
+
+
 class UpdateUserSchema(BaseModel):
+    cpf: Optional[str] = Field(None, pattern=r"^\d{11}$")
+    birth_date: Optional[str] = Field(None, pattern=r"^\d{2}/\d{2}/\d{4}$")
     fullname: Optional[str] = Field(
         None,
         max_length=FULLNAME_MAX,
@@ -172,9 +179,13 @@ class UpdateUserSchema(BaseModel):
 
 
 class AuthUserReponse(BaseModel):
+    phone: Optional[str] = None
+    cpf: Optional[str] = None
+    birth_date: Optional[str] = None
+    avatar_url: Optional[str] = None
     id: str = Field(..., alias="_id", description=DESC_USER_ID, example=EXAMPLE_USER_ID)
-    fullname: str = Field(
-        ...,
+    fullname: Optional[str] = Field(
+        None,
         max_length=FULLNAME_MAX,
         min_length=FULLNAME_MIN,
         description=DESC_FULLNAME,
@@ -182,6 +193,8 @@ class AuthUserReponse(BaseModel):
     )
     email: EmailStr = Field(..., description=DESC_EMAIL, example=EXAMPLE_EMAIL)
     role: Role = Field(..., description=DESC_ROLE, example=Role.USER)
+    razao_social: Optional[str] = None
+    cnpj: Optional[str] = None
     status: Optional[str] = Field(None, description=DESC_STATUS, example=EXAMPLE_STATUS)
     created_at: Optional[datetime] = Field(
         None, description=DESC_CREATED_AT, example=EXAMPLE_DATETIME

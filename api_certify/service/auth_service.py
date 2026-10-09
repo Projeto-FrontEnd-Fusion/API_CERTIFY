@@ -256,3 +256,12 @@ class AuthService:
             )
 
         return await self.auth_repository.update(user_id, update_data)
+
+    async def change_password(self, user_id: str, current_password: str, new_password: str):
+        if not self._is_strong_password(new_password):
+            raise HTTPException(status_code=400, detail="Use pelo menos 8 caracteres, maiúscula, minúscula, número e símbolo")
+        if not await self.auth_repository.change_password(user_id, current_password, new_password):
+            raise HTTPException(status_code=400, detail="Senha atual incorreta")
+
+    async def set_avatar(self, user_id: str, url: str):
+        await self.auth_repository.set_avatar(user_id, url)

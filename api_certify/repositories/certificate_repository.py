@@ -167,6 +167,10 @@ class CertificateRepository:
             event_data=event_data,
         )
 
+        created_certificate['notifications'] = {
+            'student': {'status': 'pending', 'attempts': 0},
+            'company': {'status': 'pending' if issuer_id else 'skipped', 'attempts': 0},
+        }
         result = await self.certificate_collection.insert_one(created_certificate)
 
         created_doc = await self.certificate_collection.find_one(

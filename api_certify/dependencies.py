@@ -1,3 +1,4 @@
+from api_certify.service.certificate_email_service import CertificateEmailService
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -8,8 +9,6 @@ from api_certify.repositories.certificate_repository import CertificateRepositor
 from api_certify.service.auth_service import AuthService
 from api_certify.service.certificate_service import CertificateService
 from api_certify.repositories.refresh_token_repository import RefreshTokenRepository
-from api_certify.service.certificate_service import CertificateService
-from api_certify.repositories.certificate_repository import CertificateRepository
 from api_certify.service.event_service import EventService
 from api_certify.repositories.event_repository import EventRepository
 
@@ -105,4 +104,5 @@ def get_certificate_service(
     auth_repository: AuthRepository = Depends(get_auth_repository),
     event_repository: EventRepository = Depends(get_event_repository),
 ) -> CertificateService:
-    return CertificateService(certificate_repository, auth_repository, event_repository)
+    email_service = CertificateEmailService(certificate_repository.certificate_collection, auth_repository)
+    return CertificateService(certificate_repository, auth_repository, event_repository, email_service=email_service)

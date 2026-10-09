@@ -3,7 +3,7 @@ import aiofiles
 from pathlib import Path
 from fastapi import UploadFile, HTTPException, status
 
-UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads"
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(Path(__file__).parent.parent.parent / "uploads")))
 ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".svg"}
 MAX_FILE_SIZE = 2 * 1024 * 1024  # 2MB
 
@@ -79,3 +79,20 @@ class UploadService:
             await f.write(content)
 
         return f"/static/uploads/signatures/{filename}"
+
+    async def upload_avatar(self, user_id: str, file: UploadFile) -> str:
+        from uuid import uuid4
+        ext = Path(file.filename or "").suffix.lower()
+        if ext not in {".png", ".jpg", ".jpeg"} or file.content_type not in {"image/png", "image/jpeg"}:
+            raise HTTPException(status_code=415, detail="Envie uma imagem PNG ou JPG")
+        content = await file.read(5 * 1024 * 1024 + 1)
+        if len(content) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="A imagem deve ter no máximo 5MB")
+        if not content or not (content.startswith(b"\x89PNG\r\n\x1a\n") or content.startswith(b"\xff\xd8\xff")):
+            raise HTTPException(status_code=415, detail="Imagem inválida")
+        directory = UPLOAD_DIR / "avatars"
+        directory.mkdir(parents=True, exist_ok=True)
+        filename = f"{user_id}_{uuid4().hex}{ext}"
+        async with aiofiles.open(directory / filename, "wb") as output:
+            await output.write(content)
+        return f"/static/uploads/avatars/{filename}"

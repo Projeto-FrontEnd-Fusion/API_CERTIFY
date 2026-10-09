@@ -1,0 +1,617 @@
+{
+  "info": {
+    "name": "Certify - Teste local completo",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Execute em ordem. Cria contas, evento e certificado de teste no MongoDB local. Tokens e IDs sao capturados automaticamente. Configure access_key_system no ambiente local."
+  },
+  "variable": [
+    {
+      "key": "server_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "test_password",
+      "value": "PostmanTeste123!"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Saude da API",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{server_url}}/health",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const suffix = Date.now().toString() + Math.floor(Math.random() * 10000);",
+              "pm.collectionVariables.set('student_email', 'student.' + suffix + '@example.com');",
+              "pm.collectionVariables.set('company_email', 'company.' + suffix + '@example.com');",
+              "let digits = Array.from({length: 12}, () => Math.floor(Math.random() * 10));",
+              "function check(weights) { const s = digits.reduce((sum, d, i) => sum + d * weights[i], 0); const r = s % 11; return r < 2 ? 0 : 11 - r; }",
+              "digits.push(check([5,4,3,2,9,8,7,6,5,4,3,2]));",
+              "digits.push(check([6,5,4,3,2,9,8,7,6,5,4,3,2]));",
+              "pm.collectionVariables.set('test_cnpj', digits.join(''));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('API saudavel', () => pm.expect(body.status).to.eql('healthy'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Cadastrar participante",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{server_url}}/api/v1/auth/signup",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullname\": \"Participante Postman\",\n  \"email\": \"{{student_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"role\": \"user\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.collectionVariables.set('student_id', body.data.auth._id || body.data.auth.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Login participante",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{server_url}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{student_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.test('Token recebido', () => pm.expect(body.data.access_token).to.be.a('string').and.not.empty);",
+              "pm.collectionVariables.set('student_token', body.data.access_token);",
+              "pm.collectionVariables.set('student_refresh', body.data.refresh_token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Meu perfil",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{server_url}}/api/v1/auth/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{student_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.test('Conta correta', () => pm.expect(body.data.auth._id || body.data.auth.id).to.eql(pm.collectionVariables.get('student_id')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Cadastrar empresa",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{server_url}}/api/v1/auth/signup/company",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"razao_social\": \"Empresa Teste Postman\",\n  \"cnpj\": \"{{test_cnpj}}\",\n  \"email\": \"{{company_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.collectionVariables.set('company_id', body.data.auth._id || body.data.auth.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Login empresa",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{server_url}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{company_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.test('Token recebido', () => pm.expect(body.data.access_token).to.be.a('string').and.not.empty);",
+              "pm.collectionVariables.set('company_token', body.data.access_token);",
+              "pm.collectionVariables.set('company_refresh', body.data.refresh_token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Criar evento",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{server_url}}/api/v1/events",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{company_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Curso Teste Postman\",\n  \"institution\": \"Empresa Teste Postman\",\n  \"description\": \"Evento criado para verificacao local\",\n  \"workload\": 8,\n  \"start_date\": \"2026-10-05T12:00:00Z\",\n  \"end_date\": \"2026-10-05T20:00:00Z\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.collectionVariables.set('event_id', body.data.event._id || body.data.event.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Consultar evento",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{server_url}}/api/v1/events/{{event_id}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Editar evento",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{server_url}}/api/v1/events/{{event_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{company_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Evento atualizado pelo Postman\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Emitir certificado",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{server_url}}/api/v1/certificate/{{student_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{company_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullname\": \"Participante Postman\",\n  \"email\": \"{{student_email}}\",\n  \"access_key\": \"{{access_key_system}}\",\n  \"event_id\": \"{{event_id}}\",\n  \"status\": \"available\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.collectionVariables.set('certificate_id', body.data.certificate._id || body.data.certificate.id);",
+              "pm.collectionVariables.set('certificate_key', body.data.certificate.access_key);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Validacao publica",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{server_url}}/api/v1/certificate/validate/{{certificate_key}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Certificados do participante",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{server_url}}/api/v1/certificate/users/{{student_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{student_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.test('Certificado listado', () => pm.expect(body.data.items.map(c => c._id || c.id)).to.include(pm.collectionVariables.get('certificate_id')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Consultar certificado",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{server_url}}/api/v1/certificate/{{certificate_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{student_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 - Renovar sessao",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{server_url}}/api/v1/auth/refresh",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{student_refresh}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.test('Token recebido', () => pm.expect(body.data.access_token).to.be.a('string').and.not.empty);",
+              "pm.collectionVariables.set('student_token', body.data.access_token);",
+              "pm.collectionVariables.set('student_refresh', body.data.refresh_token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 - Perfil apos renovacao",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{server_url}}/api/v1/auth/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{student_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 - Logout participante",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{server_url}}/api/v1/auth/logout",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{student_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{student_refresh}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

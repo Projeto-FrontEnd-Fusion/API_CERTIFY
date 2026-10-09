@@ -1,6 +1,5 @@
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock
 from httpx import ASGITransport, AsyncClient
 from io import BytesIO
 
@@ -102,4 +101,4 @@ async def test_upload_without_token():
             files={"file": ("logo.png", BytesIO(file_content), "image/png")},
         )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
