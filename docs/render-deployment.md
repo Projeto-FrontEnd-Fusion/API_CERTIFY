@@ -8,6 +8,7 @@ O workflow `.github/workflows/ci.yml` roda em PRs, na `main` e manualmente. Não
 - Ruff verifica erros de correção (`E9,F`), incluindo nomes indefinidos, imports e funções duplicadas. As regras antigas de estilo/complexidade do `pyproject.toml` continuam disponíveis em `poetry run task lint`; não são apresentadas como aprovadas pelo CI enquanto o legado não for corrigido.
 - Pytest com relatórios JUnit e cobertura XML; mínimo de 85% no escopo definido pelo `pyproject.toml` (repositórios e infraestrutura de banco excluídos).
 - Um job inicia MongoDB descartável e a API real; Postman executa o fluxo HTTP da coleção local. Nenhum banco ou SMTP de produção é utilizado.
+- O Postman roda sem login, com `--no-report-events`. A saída de terminal é salva em `artifacts/postman.log` com `tee` e `pipefail`, preservando falhas de assertions. A opção `--output` exige login no Postman e não é utilizada neste CI.
 - O check final `Backend CI passed` falha se qualquer job obrigatório falhar, for cancelado ou ignorado.
 - Dependabot abre atualizações semanais de Python e GitHub Actions.
 - Auditoria das versões de runtime do lockfile com pip-audit, bloqueando vulnerabilidades conhecidas. O frontend também bloqueia alertas altos/críticos com npm audit.

@@ -97,12 +97,14 @@ jobs:
           poetry run uvicorn api_certify.main:app --host 127.0.0.1 --port 8000 > artifacts/api.log 2>&1 &
           python scripts/wait_for_http.py http://127.0.0.1:8000/ready
       - name: Run HTTP contract assertions
-        run: >-
-          postman collection run postman/Certify-Local.postman_collection.json
-          --env-var server_url=http://127.0.0.1:8000
-          --env-var access_key_system=ci-only-certificate-key
-          --no-report-events --bail --timeout-request 15000
-          --output artifacts/postman
+        shell: bash
+        run: |
+          set -o pipefail
+          postman collection run postman/Certify-Local.postman_collection.json \
+            --env-var server_url=http://127.0.0.1:8000 \
+            --env-var access_key_system=ci-only-certificate-key \
+            --no-report-events --bail --timeout-request 15000 \
+            2>&1 | tee artifacts/postman.log
       - name: Upload contract reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -148,4 +150,6 @@ jobs:
           TESTS_RESULT: ${{ needs.tests.result }}
           API_RESULT: ${{ needs.api-contract.result }}
           SECURITY_RESULT: ${{ needs.security.result }}
-        run: test "$TESTS_RESULT" = success && test "$API_RESULT" = success && test "$SECURITY_RESULT" = success
+        run: |
+          printf 'Tests: %s\nHTTP contract: %s\nSecurity: %s\n' "$TESTS_RESULT" "$API_RESULT" "$SECURITY_RESULT"
+          test "$TESTS_RESULT" = success && test "$API_RESULT" = success && test "$SECURITY_RESULT" = success
