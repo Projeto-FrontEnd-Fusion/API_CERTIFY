@@ -24,6 +24,7 @@ from api_certify.routes.v1.auth_routes import auth_routes
 from api_certify.routes.v1.certificate_routes import certificate_routes
 from api_certify.routes.v1.event_routes import event_routes
 from api_certify.routes.v1.upload_routes import upload_routes
+from api_certify.routes.v1.notification_routes import notification_routes
 from api_certify.service.upload_service import UPLOAD_DIR
 from api_certify.service.certificate_email_service import CertificateEmailService
 from api_certify.repositories.auth_repository import AuthRepository
@@ -163,6 +164,7 @@ app.include_router(auth_routes, prefix=API_PREFIX)
 app.include_router(certificate_routes, prefix=API_PREFIX)
 app.include_router(event_routes, prefix=API_PREFIX)
 app.include_router(upload_routes, prefix=API_PREFIX)
+app.include_router(notification_routes, prefix=API_PREFIX)
 
 # Servir arquivos estáticos (uploads)
 from fastapi.staticfiles import StaticFiles
