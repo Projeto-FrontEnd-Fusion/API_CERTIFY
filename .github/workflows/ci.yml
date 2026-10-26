@@ -95,7 +95,7 @@ jobs:
         run: |
           mkdir -p artifacts
           poetry run uvicorn api_certify.main:app --host 127.0.0.1 --port 8000 > artifacts/api.log 2>&1 &
-          python scripts/wait_for_http.py http://127.0.0.1:8000/ready
+          python scripts/wait_for_http.py http://127.0.0.1:8000/ready || { cat artifacts/api.log; exit 1; }
       - name: Run HTTP contract assertions
         shell: bash
         run: |
@@ -129,7 +129,23 @@ jobs:
           python -m pip install pip-audit==2.10.1
           mkdir -p artifacts
           python scripts/export_audit_requirements.py > artifacts/requirements.txt
-          pip-audit --no-deps --disable-pip -r artifacts/requirements.txt --format json --output artifacts/dependency-audit.json
+          set -o pipefail
+          pip-audit --no-deps --disable-pip -r artifacts/requirements.txt --format json --output artifacts/dependency-audit.json 2>&1 | tee artifacts/dependency-audit.log
+      - name: Show vulnerable dependencies
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = Path('artifacts/dependency-audit.json')
+          if report.is_file():
+              for dependency in json.loads(report.read_text())['dependencies']:
+                  for vulnerability in dependency.get('vulns', []):
+                      print(f"{dependency['name']}=={dependency['version']}: "
+                            f"{vulnerability['id']}; fixed in "
+                            f"{', '.join(vulnerability.get('fix_versions', [])) or 'not provided'}")
+          PY
       - name: Upload security report
         if: always()
         uses: actions/upload-artifact@v7

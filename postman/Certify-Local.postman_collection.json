@@ -497,6 +497,167 @@
       ]
     },
     {
+      "name": "13a - Notificacoes reais da empresa",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{server_url}}/api/v1/notifications?limit=5",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{company_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.test('Evento real de emissao', () => pm.expect(body.data.items.some(n => n.id === pm.collectionVariables.get('certificate_id') + ':issued')).to.eql(true));",
+              "pm.test('Contagem de nao lidas', () => pm.expect(body.data.unread_count).to.be.above(0));",
+              "pm.test('Datas UTC', () => body.data.items.forEach(n => pm.expect(n.created_at).to.match(/Z$/)));",
+              "pm.collectionVariables.set('notification_id', pm.collectionVariables.get('certificate_id') + ':issued');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13b - Aluno nao acessa notificacoes da empresa",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{server_url}}/api/v1/notifications",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{student_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+              "const body = pm.response.json();"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13c - Marcar notificacao como lida",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": "{{server_url}}/api/v1/notifications/{{notification_id}}/read",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{company_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.test('Leitura persistida', () => pm.expect(body.data.notification.read).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13d - Marcar todas como lidas",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": "{{server_url}}/api/v1/notifications/read-all",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{company_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.test('Contagem atualizada', () => pm.expect(body.data.updated).to.be.a('number'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13e - Recarregar notificacoes lidas",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{server_url}}/api/v1/notifications",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{company_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Operacao bem-sucedida', () => pm.expect(body.success).to.eql(true));",
+              "pm.test('Sem notificacoes nao lidas', () => pm.expect(body.data.unread_count).to.eql(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "14 - Renovar sessao",
       "request": {
         "method": "POST",

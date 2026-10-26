@@ -24,6 +24,7 @@ passlib = { extras = ["bcrypt"], version = "^1.7.4" }
 bcrypt = "5.0.0"
 
 httpx = "^0.28.1"
+certifi = ">=2026.10.19"
 asgi-lifespan = "^2.1.0"
 fastapi-lifespan-manager = "^0.1.4"
 
