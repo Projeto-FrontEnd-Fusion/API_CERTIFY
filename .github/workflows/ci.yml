@@ -131,6 +131,21 @@ jobs:
           python scripts/export_audit_requirements.py > artifacts/requirements.txt
           set -o pipefail
           pip-audit --no-deps --disable-pip -r artifacts/requirements.txt --format json --output artifacts/dependency-audit.json 2>&1 | tee artifacts/dependency-audit.log
+      - name: Show vulnerable dependencies
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = Path('artifacts/dependency-audit.json')
+          if report.is_file():
+              for dependency in json.loads(report.read_text())['dependencies']:
+                  for vulnerability in dependency.get('vulns', []):
+                      print(f"{dependency['name']}=={dependency['version']}: "
+                            f"{vulnerability['id']}; fixed in "
+                            f"{', '.join(vulnerability.get('fix_versions', [])) or 'not provided'}")
+          PY
       - name: Upload security report
         if: always()
         uses: actions/upload-artifact@v7

@@ -6,6 +6,8 @@ O merge `fb21672` atualizou bcrypt para 5.0.0 mantendo Passlib 1.7.4, combinaç�
 
 Falhas de inicialização agora imprimem `artifacts/api.log` no job. A auditoria mantém o JSON e grava também `artifacts/dependency-audit.log`, preservando o código de saída com `pipefail`. Falha da auditoria continua bloqueando o check final.
 
+A auditoria do PR #40 identificou `PYSEC-2026-4320` / `GHSA-6q48-6c7w-9gw2` no `certifi 2026.2.25`. O projeto agora exige `certifi >=2026.10.19` e o lockfile fixa `2026.10.23`, com hashes dos arquivos publicados no PyPI. O lockfile foi regravado com Poetry 2.5.1, preservando integralmente as outras entradas, e passou em `poetry check --lock`. O job também imprime no log os pacotes vulneráveis e suas versões de correção para evitar depender do download do artifact. A nova auditoria remota ainda precisa confirmar o resultado; ela não foi suprimida.
+
 Validação da correção em 26/10/2026: 167 testes aprovados, cobertura de 88,13%, Ruff `E9,F` e `poetry check --lock` aprovados. Os testes usaram Python 3.14.7 e bcrypt 5.0.0 disponível no cache local; as demais dependências do ambiente não reproduzem integralmente o lockfile atualizado pelo merge. A matriz Linux 3.11/3.12 e o contrato Postman/MongoDB ainda precisam rodar no GitHub. Docker está inacessível neste ambiente; a auditoria atual não pôde consultar o PyPI por bloqueio de rede. Esses resultados não representam aprovação do CI remoto nem da auditoria atual.
 
 O workflow `.github/workflows/ci.yml` roda em PRs, na `main` e manualmente. Não precisa de segredos de produção.
