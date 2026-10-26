@@ -2,10 +2,10 @@ import os
 from datetime import datetime, timedelta, timezone
 
 import uuid
+import bcrypt
 from dotenv import load_dotenv
 import jwt
 from jwt import InvalidTokenError as JWTError
-from passlib.context import CryptContext
 
 load_dotenv()
 
@@ -17,18 +17,22 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY não configurada no .env")
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Preserve Passlib's UTF-8/72-byte behavior for existing password hashes and
+# the API's existing password contract (up to 100 characters).
+BCRYPT_MAX_BYTES = 72
 
 
 class HashManager:
 
     @staticmethod
     def hash_password(password: str) -> str:
-        return pwd_context.hash(password)
+        password_bytes = password.encode('utf-8')[:BCRYPT_MAX_BYTES]
+        return bcrypt.hashpw(password_bytes, bcrypt.gensalt(rounds=12)).decode('ascii')
 
     @staticmethod
     def verify_password(password: str, hashed_password: str) -> bool:
-        return pwd_context.verify(password, hashed_password)
+        password_bytes = password.encode('utf-8')[:BCRYPT_MAX_BYTES]
+        return bcrypt.checkpw(password_bytes, hashed_password.encode('ascii'))
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:

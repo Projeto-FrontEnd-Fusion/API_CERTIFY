@@ -2,6 +2,12 @@
 
 ## Pipeline do backend
 
+O merge `fb21672` atualizou bcrypt para 5.0.0 mantendo Passlib 1.7.4, combinação que falha na inicialização do hashing. `HashManager` agora usa bcrypt diretamente, sem reduzir a versão instalada. Preserva hashes `$2b$`, custo 12 e o comportamento anterior de UTF-8 limitado aos primeiros 72 bytes, inclusive para verificar senhas existentes. O contrato HTTP de senhas permanece o mesmo; testes cobrem hashes legados e senhas longas/multibyte. Não alterar esse formato sem uma migração explícita das credenciais.
+
+Falhas de inicialização agora imprimem `artifacts/api.log` no job. A auditoria mantém o JSON e grava também `artifacts/dependency-audit.log`, preservando o código de saída com `pipefail`. Falha da auditoria continua bloqueando o check final.
+
+Validação da correção em 26/10/2026: 167 testes aprovados, cobertura de 88,13%, Ruff `E9,F` e `poetry check --lock` aprovados. Os testes usaram Python 3.14.7 e bcrypt 5.0.0 disponível no cache local; as demais dependências do ambiente não reproduzem integralmente o lockfile atualizado pelo merge. A matriz Linux 3.11/3.12 e o contrato Postman/MongoDB ainda precisam rodar no GitHub. Docker está inacessível neste ambiente; a auditoria atual não pôde consultar o PyPI por bloqueio de rede. Esses resultados não representam aprovação do CI remoto nem da auditoria atual.
+
 O workflow `.github/workflows/ci.yml` roda em PRs, na `main` e manualmente. Não precisa de segredos de produção.
 
 - Poetry e lockfile validados; Python 3.11 e 3.12.
