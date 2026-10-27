@@ -25,6 +25,16 @@ No GitHub, habilite Actions nos forks e configure uma regra de proteção para `
 
 ## Render
 
+### Importar variáveis de ambiente
+
+O modelo público está em [`.env.render.example`](../.env.render.example). O arquivo local `.env.render`, ignorado pelo Git, foi preparado para importar em **Web Service > Environment > Add from .env**. Ele contém chaves aleatórias próprias para uma instalação nova; em um serviço já existente, preserve as chaves configuradas no Render.
+
+Antes de importar, preencha `DB_URL` com a URI do MongoDB remoto e troque `SEU-FRONTEND` pela URL real do Static Site em `FRONTEND_URL` e `FRONTEND_URLS`. Essas duas variáveis usam somente a origem HTTPS, sem `/api/v1` e sem barra final. Cadastre usuário/senha e permita a conexão do serviço no provedor de banco. Não use o MongoDB de `localhost` no Render.
+
+`EMAIL_WORKER_ENABLED=false` e SMTP vazio são o padrão de configuração inicial. Para envio de e-mails, configure um plano/provedor compatível, preencha as variáveis SMTP e então habilite o worker. No plano Free, SMTP nas portas 25/465/587 não funciona; uploads no diretório local são temporários. `UPLOAD_DIR=/var/data/uploads` só deve ser ativado depois de configurar o disco persistente nesse mount path.
+
+Use o build/start do Blueprint, mantenha `.python-version` em `3.12` e deixe o Render fornecer `PORT`. Depois de publicar, verifique `https://<api>/ready`. Não envie `.env.render` ao Git nem copie suas chaves para o frontend. Referências: [variáveis de ambiente](https://render.com/docs/configure-environment-variables), [limitações Free](https://render.com/docs/free).
+
 O `render.yaml` do backend define um Web Service Python com `autoDeployTrigger: checksPass`. Assim, merges na `main` só disparam deploy automático depois que os checks passarem. Vincule o repositório usando a integração GitHub do Render; serviço criado apenas pela URL pública não tem o mesmo fluxo automático.
 
 O Blueprint padrão usa explicitamente `free` para evitar cobrança acidental. Ele serve para demonstração: sem disco persistente, uploads desaparecem em reinícios; o Render bloqueia SMTP nas portas 25/465/587 nesse plano. A publicação completa com as funcionalidades atuais requer escolher um plano pago e adicionar disco, ou adaptar armazenamento e e-mail para serviços externos. Não aplicar recursos pagos sem escolher o plano antes.
