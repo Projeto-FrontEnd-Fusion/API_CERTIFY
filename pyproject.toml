@@ -9,7 +9,7 @@ packages = [{ include = "api_certify" }]
 [tool.poetry.dependencies]
 python = "^3.11"
 
-fastapi = ">=0.143,<0.151"
+fastapi = ">=0.143,<0.163"
 uvicorn = "^0.54.0"
 
 python-dotenv = "^1.2.4"
