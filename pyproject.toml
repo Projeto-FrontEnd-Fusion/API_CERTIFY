@@ -31,7 +31,7 @@ fastapi-lifespan-manager = "^0.1.4"
 
 mongomock-motor = "^0.0.36"
 aiofiles = "^25.1.0"
-python-multipart = "^0.0.32"
+python-multipart = ">=0.0.32,<0.0.34"
 pyjwt = {extras = ["crypto"], version = "^2.15.1"}
 
 [tool.poetry.group.dev.dependencies]
